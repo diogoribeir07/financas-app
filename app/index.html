@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="pt-PT" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Finanças" />
+  <meta name="theme-color" content="#121214" />
+  <title>Finanças Pessoais</title>
+  <link rel="manifest" href="./manifest.json?v=13" />
+  <link rel="stylesheet" href="./styles.css?v=13" />
+</head>
+<body>
+  <div id="toast" class="toast">Registo guardado</div>
+
+  <div class="app-shell">
+    <!-- DESKTOP LEFT SIDEBAR (Visível apenas em Computador >= 1024px) -->
+    <aside class="desktop-sidebar">
+      <div class="sidebar-top">
+        <div class="brand">
+          <div class="brand-mark">FP</div>
+          <div>
+            <div class="brand-title">Finanças Pessoais</div>
+            <div class="brand-subtitle">
+              <span class="status-dot"></span>
+              <span id="sidebarSyncText">Excel Sincronizado</span>
+            </div>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <button type="button" class="side-nav-item active" data-tab="tab-registar">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            <span>Painel & Registo</span>
+          </button>
+          <button type="button" class="side-nav-item" data-tab="tab-contas">
+            <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+            <span>Contas & Recorrentes</span>
+          </button>
+          <button type="button" class="side-nav-item" data-tab="tab-movimentos">
+            <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+            <span>Histórico Completo</span>
+          </button>
+          <button type="button" class="side-nav-item" data-tab="tab-metricas">
+            <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+            <span>Métricas</span>
+          </button>
+          <button type="button" class="side-nav-item" data-tab="tab-cloud">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <span>Excel & Cloud</span>
+          </button>
+        </nav>
+
+        <div>
+          <div class="sidebar-section-title">Saldos por Conta</div>
+          <div id="sidebarAccountsList" class="sidebar-accounts-list"></div>
+        </div>
+      </div>
+
+      <div class="sidebar-bottom">
+        <button type="button" id="sidebarDownloadExcelBtn" class="action-btn-secondary" style="margin-bottom: 0;">
+          Abrir Excel (.xlsx)
+        </button>
+      </div>
+    </aside>
+
+    <!-- ÁREA PRINCIPAL (Full-Screen no PC / Centrada no iPhone) -->
+    <div class="app-container">
+      <!-- Top Header -->
+      <header class="app-header">
+        <div class="brand">
+          <div class="brand-mark">FP</div>
+          <div>
+            <div class="brand-title" id="pageHeaderTitle">Painel Financeiro</div>
+            <div class="brand-subtitle">
+              <span id="syncDot" class="status-dot"></span>
+              <span id="syncStatusText">Excel Sincronizado</span>
+            </div>
+          </div>
+        </div>
+        <div class="header-actions">
+          <input type="month" id="globalMonthPicker" class="input-field" style="padding: 6px 10px; font-size: 12px; width: auto;" />
+          <button id="themeToggleBtn" class="icon-btn" title="Alternar Tema Claro/Escuro">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.75" fill="none">
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Multi-Account Strip (Grid Full-Width no PC / Carrossel no iPhone) -->
+      <section id="accountsStrip" class="accounts-strip"></section>
+
+      <!-- Top KPI Strip -->
+      <section class="summary-strip">
+        <div class="summary-pill">
+          <div class="label" id="kpiExpensesLabel">Despesas Mês</div>
+          <div id="kpiExpenses" class="value expense">0,00 €</div>
+        </div>
+        <div class="summary-pill">
+          <div class="label" id="kpiIncomeLabel">Receitas Mês</div>
+          <div id="kpiIncome" class="value income">0,00 €</div>
+        </div>
+        <div class="summary-pill">
+          <div class="label" id="kpiBalanceLabel">Património Total</div>
+          <div id="kpiBalance" class="value">0,00 €</div>
+        </div>
+      </section>
+
+      <!-- TAB 1: REGISTO RÁPIDO & WORKSPACE DE 3 COLUNAS NO PC -->
+      <main id="tab-registar" class="tab-view">
+        <div class="desktop-workspace-grid">
+          <!-- Coluna 1: Formulário Rápido -->
+          <div class="card">
+            <div class="type-switcher">
+              <button type="button" class="type-btn active" data-type="Despesa">Despesa</button>
+              <button type="button" class="type-btn" data-type="Receita">Receita</button>
+              <button type="button" class="type-btn" data-type="Transferência">Transferir</button>
+            </div>
+
+            <form id="quickExpenseForm">
+              <div class="amount-display-box">
+                <div class="amount-input-wrapper">
+                  <input
+                    type="text"
+                    id="amountInput"
+                    class="amount-input"
+                    placeholder="0,00"
+                    inputmode="decimal"
+                    autocomplete="off"
+                    required
+                    autofocus
+                  />
+                  <span class="amount-currency">€</span>
+                </div>
+                <div id="amountCalcPreview" class="amount-calc-preview hidden">
+                  <span id="calcFormulaText" class="calc-formula-text">0,00</span>
+                  <span id="calcTotalText" class="calc-total-text">= 0,00 €</span>
+                </div>
+                <div class="calc-ops-row">
+                  <button type="button" class="calc-op-btn" id="calcAddOpBtn" title="Somar parcela (+)">+ Somar</button>
+                  <button type="button" class="calc-op-btn" id="calcSubOpBtn" title="Subtrair parcela (-)">- Subtrair</button>
+                  <button type="button" class="calc-op-btn calc-eq-btn" id="calcEqualsBtn" title="Calcular total (=)">= Total</button>
+                  <button type="button" class="calc-op-btn calc-clear-btn" id="calcClearBtn" title="Limpar">Limpar</button>
+                </div>
+                <div class="quick-amounts">
+                  <button type="button" class="chip-btn" data-add="1.50">+1,50</button>
+                  <button type="button" class="chip-btn" data-add="5">+5</button>
+                  <button type="button" class="chip-btn" data-add="10">+10</button>
+                  <button type="button" class="chip-btn" data-add="20">+20</button>
+                  <button type="button" class="chip-btn" data-add="-1.50">-1,50</button>
+                  <button type="button" class="chip-btn" data-add="-5">-5</button>
+                </div>
+              </div>
+
+              <!-- Seleção de Conta Origem -->
+              <div class="section-label">
+                <span id="fromAccountLabel">Conta</span>
+                <button type="button" class="link-btn" id="openNewAccountQuickBtn">Gerir Contas</button>
+              </div>
+              <div id="formAccountPills" class="account-pills"></div>
+
+              <!-- Seleção de Conta Destino (Visível apenas em modo Transferência) -->
+              <div id="transferToBox" class="hidden">
+                <div class="section-label">
+                  <span>Para a Conta de Destino</span>
+                </div>
+                <div id="formToAccountPills" class="account-pills"></div>
+              </div>
+
+              <!-- Seleção de Categoria -->
+              <div id="categorySectionBox">
+                <div class="section-label">
+                  <span>Categoria</span>
+                  <button type="button" class="link-btn" id="openCategoryModalBtn">Editar Categorias</button>
+                </div>
+                <div id="categoryGrid" class="category-grid"></div>
+
+                <div class="section-label">
+                  <span>Sugestões</span>
+                  <span id="selectedCatLabel" style="color: var(--text-primary); text-transform: none; font-weight: 500;"></span>
+                </div>
+                <div id="noteSuggestions" class="note-suggestions"></div>
+              </div>
+
+              <div class="form-row two-cols">
+                <input
+                  type="text"
+                  id="descriptionInput"
+                  class="input-field"
+                  placeholder="Descrição (ex: Almoço, Continente...)"
+                  autocomplete="off"
+                />
+                <input type="date" id="dateInput" class="input-field" required />
+              </div>
+
+              <div id="paymentSectionBox">
+                <div class="section-label">
+                  <span>Método de Pagamento</span>
+                </div>
+                <div class="payment-pills" id="paymentPills">
+                  <div class="pay-pill selected" data-pay="MBWay">MBWay</div>
+                  <div class="pay-pill" data-pay="Multibanco">Multibanco</div>
+                  <div class="pay-pill" data-pay="Dinheiro">Dinheiro</div>
+                </div>
+              </div>
+
+              <button type="submit" id="mainSubmitBtn" class="submit-btn">
+                <span>Guardar Registo</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- Coluna 2: Movimentos Recentes + Pesquisa Rápida -->
+          <div class="card">
+            <div class="section-label">
+              <span>Movimentos do Mês <span id="activeAccountFilterLabel"></span></span>
+              <span id="pendingSyncBadge" class="hidden">Pendentes</span>
+            </div>
+            <div class="form-row" style="margin-bottom: 12px;">
+              <input
+                type="search"
+                id="quickDashboardSearch"
+                class="input-field"
+                placeholder="Filtrar movimentos por descrição ou categoria..."
+              />
+            </div>
+            <div id="recentTxList" class="tx-list"></div>
+          </div>
+
+          <!-- Coluna 3 (Exclusiva Ecrã Largo PC): Resumo por Categoria & Deduções Recorrentes -->
+          <div class="desktop-only-col">
+            <div class="card">
+              <div class="section-label">
+                <span>Gastos por Categoria</span>
+                <button type="button" class="link-btn" id="sideAddCatBtn">+ Categoria</button>
+              </div>
+              <div id="desktopSideMetricsList" class="cat-progress-list"></div>
+            </div>
+
+            <div class="card">
+              <div class="section-label">
+                <span>Deduções Recorrentes</span>
+                <button type="button" class="link-btn" id="sideAddRecBtn">+ Recorrente</button>
+              </div>
+              <div id="desktopSideRecurringList" class="tx-list"></div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- TAB 2: CONTAS, TIPOS DE GASTO & DEDUÇÕES RECORRENTES -->
+      <main id="tab-contas" class="tab-view hidden">
+        <div class="desktop-grid">
+          <div>
+            <div class="card">
+              <div class="section-label">
+                <span>Contas</span>
+                <button type="button" class="link-btn" id="addNewAccountBtn">+ Nova Conta</button>
+              </div>
+              <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+                Saldos independentes para Comida Mãe, Comida Pai, Dinheiro Geral e Bolsa.
+              </p>
+              <div id="accountsManageList" class="tx-list" style="margin-bottom: 14px;"></div>
+              <button type="button" id="quickJumpTransferBtn" class="action-btn-secondary">
+                Transferir entre Contas
+              </button>
+            </div>
+
+            <div class="card">
+              <div class="section-label">
+                <span>Categorias / Tipos de Gasto</span>
+                <button type="button" class="link-btn" id="addNewCategoryBtn">+ Nova Categoria</button>
+              </div>
+              <div id="categoriesManageList" class="tx-list"></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="card">
+              <div class="section-label">
+                <span>Deduções & Receitas Recorrentes</span>
+                <button type="button" class="link-btn" id="addNewRecurringBtn">+ Nova Recorrente</button>
+              </div>
+              <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+                Despesas ou receitas mensais automáticas (ex: Ginásio, Spotify, Propinas, Bolsa).
+              </p>
+              <div id="recurringManageList" class="tx-list" style="margin-bottom: 14px;"></div>
+              <button type="button" id="processRecurringNowBtn" class="submit-btn">
+                Processar Recorrentes deste Mês
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- TAB 3: HISTÓRICO COMPLETO -->
+      <main id="tab-movimentos" class="tab-view hidden">
+        <div class="card">
+          <div class="section-label">
+            <span>Histórico de Movimentos</span>
+            <span id="txTotalCount">0 registos</span>
+          </div>
+          <div class="form-row equal-cols" style="margin-bottom: 12px;">
+            <input
+              type="search"
+              id="searchTxInput"
+              class="input-field"
+              placeholder="Pesquisar descrição ou categoria..."
+            />
+            <select id="historyAccountFilter" class="input-field">
+              <option value="ALL">Todas as Contas</option>
+            </select>
+          </div>
+          <div id="fullTxList" class="tx-list"></div>
+        </div>
+      </main>
+
+      <!-- TAB 4: MÉTRICAS (SIMPLIFICADAS SEM ORÇAMENTO) -->
+      <main id="tab-metricas" class="tab-view hidden">
+        <div class="card">
+          <div class="section-label">
+            <span>Distribuição de Despesas por Categoria</span>
+            <span id="totalBudgetPct">0,00 €</span>
+          </div>
+          <div id="categoryMetricsList" class="cat-progress-list"></div>
+        </div>
+      </main>
+
+      <!-- TAB 5: EXCEL & CLOUD 24/7 -->
+      <main id="tab-cloud" class="tab-view hidden">
+        <div class="desktop-grid">
+          <div class="card">
+            <div class="section-label">
+              <span>Base de Dados Excel (OneDrive)</span>
+            </div>
+            <p style="font-size: 12.5px; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.5;">
+              Podes transferir a qualquer momento um ficheiro <strong>Gestao_Financeira.xlsx</strong> completo (contas, registo, recorrentes e categorias), no PC ou no iPhone. No PC, o Excel do OneDrive é atualizado automaticamente quando o servidor local está ligado.
+            </p>
+            <button type="button" id="downloadExcelBtn" class="submit-btn" style="margin-bottom: 8px;">
+              Transferir Gestao_Financeira.xlsx
+            </button>
+            <button type="button" id="syncNowBtn" class="action-btn-secondary">
+              Sincronizar Agora
+            </button>
+          </div>
+
+          <div class="card">
+            <div class="section-label">
+              <span>Ligação Cloud 24/7</span>
+            </div>
+            <div class="form-row">
+              <label class="section-label" style="margin-bottom: 4px;">Fornecedor Cloud</label>
+              <select id="cloudProviderSelect" class="input-field">
+                <option value="none">Servidor Local + Cache Offline</option>
+                <option value="github">GitHub Privado (24/7) - Recomendado</option>
+                <option value="webhook">Google Apps Script Webhook (24/7)</option>
+                <option value="supabase">Supabase Cloud Database (24/7)</option>
+              </select>
+            </div>
+
+            <div id="githubConfigBox" class="hidden">
+              <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.5;">
+                Os dados ficam num repositório <strong>privado</strong> da tua conta GitHub. Funciona no PC e no iPhone, a qualquer hora, sem ligar o servidor.
+              </p>
+              <div class="form-row two-cols">
+                <input type="text" id="githubOwnerInput" class="input-field" placeholder="Utilizador GitHub (ex: diogoribeir07)" autocomplete="off" autocapitalize="off" />
+                <input type="text" id="githubRepoInput" class="input-field" placeholder="Repositório de dados (ex: financas-data)" autocomplete="off" autocapitalize="off" />
+              </div>
+              <div class="form-row">
+                <input type="password" id="githubTokenInput" class="input-field" placeholder="Token de acesso (github_pat_...)" autocomplete="off" />
+              </div>
+              <button type="button" id="testGithubBtn" class="action-btn-secondary" style="margin-bottom: 6px;">
+                Testar Ligação
+              </button>
+              <p id="githubStatusText" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.5;"></p>
+            </div>
+
+            <div id="webhookConfigBox" class="form-row hidden">
+              <input
+                type="url"
+                id="webhookUrlInput"
+                class="input-field"
+                placeholder="https://script.google.com/macros/s/.../exec"
+              />
+            </div>
+
+            <div id="supabaseConfigBox" class="form-row hidden">
+              <input
+                type="url"
+                id="supabaseUrlInput"
+                class="input-field"
+                placeholder="URL do Projeto Supabase"
+              />
+              <input
+                type="password"
+                id="supabaseKeyInput"
+                class="input-field"
+                placeholder="Anon Public API Key"
+              />
+            </div>
+
+            <button type="button" id="saveCloudConfigBtn" class="action-btn-secondary">
+              Guardar Configuração Cloud
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- MODAL 1: EDITAR TRANSAÇÃO EXISTENTE -->
+  <div id="editTxModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">Editar Registo</div>
+        <button type="button" class="mini-action-btn" id="closeEditTxModal">Fechar</button>
+      </div>
+      <form id="editTxForm">
+        <input type="hidden" id="editTxId" />
+        <div class="form-row equal-cols">
+          <div>
+            <label class="section-label">Tipo</label>
+            <select id="editTxType" class="input-field">
+              <option value="Despesa">Despesa</option>
+              <option value="Receita">Receita</option>
+              <option value="Transferência">Transferência</option>
+            </select>
+          </div>
+          <div>
+            <label class="section-label">Valor (€ ou soma/sub)</label>
+            <input type="text" id="editTxAmount" class="input-field" inputmode="decimal" placeholder="Ex: 15,00 ou 10+5,50" required />
+          </div>
+        </div>
+        <div class="form-row equal-cols">
+          <div>
+            <label class="section-label">Conta</label>
+            <select id="editTxAccount" class="input-field"></select>
+          </div>
+          <div>
+            <label class="section-label">Categoria</label>
+            <select id="editTxCategory" class="input-field"></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="section-label">Descrição</label>
+          <input type="text" id="editTxDesc" class="input-field" required />
+        </div>
+        <div class="form-row equal-cols">
+          <div>
+            <label class="section-label">Data</label>
+            <input type="date" id="editTxDate" class="input-field" required />
+          </div>
+          <div>
+            <label class="section-label">Método</label>
+            <select id="editTxMethod" class="input-field">
+              <option value="MBWay">MBWay</option>
+              <option value="Multibanco">Multibanco</option>
+              <option value="Dinheiro">Dinheiro</option>
+              <option value="Transferência">Transferência</option>
+              <option value="Débito Direto">Débito Direto</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="submit-btn">Guardar Alterações</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 2: CRIAR / EDITAR CONTA -->
+  <div id="accountModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title" id="accountModalTitle">Nova Conta</div>
+        <button type="button" class="mini-action-btn" id="closeAccountModal">Fechar</button>
+      </div>
+      <form id="accountForm">
+        <input type="hidden" id="accIdInput" />
+        <div class="form-row two-cols">
+          <div>
+            <label class="section-label">Nome da Conta</label>
+            <input type="text" id="accNameInput" class="input-field" placeholder="Ex: Comida Mãe" required />
+          </div>
+          <div>
+            <label class="section-label">Sigla (2 letras)</label>
+            <input type="text" id="accIconInput" class="input-field" value="CT" maxlength="3" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="section-label">Saldo Inicial (€)</label>
+          <input type="number" id="accBalanceInput" class="input-field" step="0.01" value="0.00" required />
+        </div>
+        <div class="form-row">
+          <label class="section-label">Descrição</label>
+          <input type="text" id="accDescInput" class="input-field" placeholder="Opcional" />
+        </div>
+        <button type="submit" class="submit-btn">Guardar Conta</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 3: CRIAR / EDITAR TIPO DE GASTO (SEM ORÇAMENTO) -->
+  <div id="categoryModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title" id="categoryModalTitle">Editar Categoria</div>
+        <button type="button" class="mini-action-btn" id="closeCategoryModal">Fechar</button>
+      </div>
+      <form id="categoryForm">
+        <input type="hidden" id="catIdInput" />
+        <input type="hidden" id="catBudgetInput" value="0" />
+        <div class="form-row two-cols">
+          <div>
+            <label class="section-label">Nome da Categoria</label>
+            <input type="text" id="catNameInput" class="input-field" placeholder="Ex: Supermercado" required />
+          </div>
+          <div>
+            <label class="section-label">Sigla</label>
+            <input type="text" id="catIconInput" class="input-field" value="CT" maxlength="3" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div>
+            <label class="section-label">Tipo</label>
+            <select id="catTypeInput" class="input-field">
+              <option value="Despesa">Despesa</option>
+              <option value="Receita">Receita</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="section-label">Sugestões Rápidas (separadas por vírgula)</label>
+          <input type="text" id="catChipsInput" class="input-field" placeholder="Ex: Café, Almoço, Continente" />
+        </div>
+        <button type="submit" class="submit-btn">Guardar Categoria</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 4: CRIAR / EDITAR DEDUÇÃO RECORRENTE -->
+  <div id="recurringModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title" id="recurringModalTitle">Nova Dedução Recorrente</div>
+        <button type="button" class="mini-action-btn" id="closeRecurringModal">Fechar</button>
+      </div>
+      <form id="recurringForm">
+        <input type="hidden" id="recIdInput" />
+        <div class="form-row">
+          <label class="section-label">Descrição</label>
+          <input type="text" id="recDescInput" class="input-field" placeholder="Ex: Ginásio, Spotify, Propinas" required />
+        </div>
+        <div class="form-row equal-cols">
+          <div>
+            <label class="section-label">Valor (€)</label>
+            <input type="number" id="recAmountInput" class="input-field" step="0.01" min="0.01" required />
+          </div>
+          <div>
+            <label class="section-label">Dia do Mês (1 a 31)</label>
+            <input type="number" id="recDayInput" class="input-field" min="1" max="31" value="1" required />
+          </div>
+        </div>
+        <div class="form-row equal-cols">
+          <div>
+            <label class="section-label">Tipo</label>
+            <select id="recTypeInput" class="input-field">
+              <option value="Despesa">Despesa</option>
+              <option value="Receita">Receita</option>
+            </select>
+          </div>
+          <div>
+            <label class="section-label">Conta</label>
+            <select id="recAccountInput" class="input-field"></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="section-label">Categoria</label>
+          <select id="recCategoryInput" class="input-field"></select>
+        </div>
+        <button type="submit" class="submit-btn">Guardar Recorrente</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Mobile Bottom Navigation Bar (Oculta em PC >= 1024px) -->
+  <nav class="bottom-nav">
+    <button type="button" class="nav-item active" data-tab="tab-registar">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      <span>Registar</span>
+    </button>
+    <button type="button" class="nav-item" data-tab="tab-contas">
+      <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+      <span>Contas</span>
+    </button>
+    <button type="button" class="nav-item" data-tab="tab-movimentos">
+      <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+      <span>Histórico</span>
+    </button>
+    <button type="button" class="nav-item" data-tab="tab-metricas">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+      <span>Métricas</span>
+    </button>
+    <button type="button" class="nav-item" data-tab="tab-cloud">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+      <span>Cloud</span>
+    </button>
+  </nav>
+
+  <script src="./xlsx.mini.min.js?v=13"></script>
+  <script src="./xlsx-export.js?v=13"></script>
+  <script src="./github-cloud.js?v=13"></script>
+  <script src="./app.js?v=13"></script>
+</body>
+</html>

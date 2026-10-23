@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+sync_service/__pycache__/
+tests/__pycache__/
+
+# Ficheiros locais do utilizador (Excel e dados confidenciais)
+*.xlsx
+Gestao_Financeira.xlsx
+
+# Ficheiros locais com credenciais ou cache local
+sync_service/cloud_config.json
+sync_service/github_meta.json
+sync_service/agent_data.json
+
+# Ficheiros de teste temporários
+tests/js/
+
+# IDE
+.vscode/
+.idea/
