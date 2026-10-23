@@ -35,7 +35,9 @@ Para a app conseguir ler e gravar os dados de forma segura no teu repositório p
 
 ## Passo 3: Publicar a App no GitHub Pages (com 1 Duplo-Clique)
 
-1. No teu computador, vai à pasta `Gestão Pessoal` e cria um novo repositório no GitHub para o código da app: [github.com/new](https://github.com/new) com o nome **`financas-app`** (pode ser público ou privado).
+1. No teu browser, cria o repositório para o código da app: [github.com/new](https://github.com/new) com o nome **`financas-app`**.
+   - Escolhe **Public (Público)** *(o GitHub Pages só é gratuito em repositórios públicos; não te preocupes com a privacidade, pois este repositório contém apenas o visual/código da app, zero dados financeiros teus)*.
+   - Podes deixar as caixas ("Add README", etc.) desmarcadas e clica em **Create repository**.
 2. Na tua pasta do PC, faz duplo clique no ficheiro:
    **`PUBLICAR_APP_WEB.bat`**
    *(Se for a primeira vez, ele pede o nome do repositório: escreve `financas-app` e carrega Enter).*
