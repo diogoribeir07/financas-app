@@ -44,7 +44,7 @@
           </button>
           <button type="button" class="side-nav-item" data-tab="tab-metricas">
             <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
-            <span>Métricas</span>
+            <span>Dashboard</span>
           </button>
           <button type="button" class="side-nav-item" data-tab="tab-cloud">
             <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
@@ -53,7 +53,7 @@
         </nav>
 
         <div>
-          <div class="sidebar-section-title">Saldos por Conta</div>
+          <div class="sidebar-section-title">Escolher Conta</div>
           <div id="sidebarAccountsList" class="sidebar-accounts-list"></div>
         </div>
       </div>
@@ -80,6 +80,12 @@
           </div>
         </div>
         <div class="header-actions">
+          <div id="activeAccountCompactBar" class="active-account-compact-bar">
+            <span class="aac-label" id="compactAccName">Dinheiro Geral</span>
+            <span class="aac-sep">·</span>
+            <span class="aac-bal" id="compactAccBalance">0,00 €</span>
+            <button type="button" class="link-btn aac-dash-link" id="openDashboardQuickBtn">Ver Dashboard</button>
+          </div>
           <input type="month" id="globalMonthPicker" class="input-field" style="padding: 6px 10px; font-size: 12px; width: auto;" />
           <button id="themeToggleBtn" class="icon-btn" title="Alternar Tema Claro/Escuro">
             <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.75" fill="none">
@@ -89,25 +95,6 @@
           </button>
         </div>
       </header>
-
-      <!-- Multi-Account Strip (Grid Full-Width no PC / Carrossel no iPhone) -->
-      <section id="accountsStrip" class="accounts-strip"></section>
-
-      <!-- Top KPI Strip -->
-      <section class="summary-strip">
-        <div class="summary-pill">
-          <div class="label" id="kpiExpensesLabel">Despesas Mês</div>
-          <div id="kpiExpenses" class="value expense">0,00 €</div>
-        </div>
-        <div class="summary-pill">
-          <div class="label" id="kpiIncomeLabel">Receitas Mês</div>
-          <div id="kpiIncome" class="value income">0,00 €</div>
-        </div>
-        <div class="summary-pill">
-          <div class="label" id="kpiBalanceLabel">Património Total</div>
-          <div id="kpiBalance" class="value">0,00 €</div>
-        </div>
-      </section>
 
       <!-- TAB 1: REGISTO RÁPIDO & WORKSPACE DE 3 COLUNAS NO PC -->
       <main id="tab-registar" class="tab-view">
@@ -311,14 +298,42 @@
         </div>
       </main>
 
-      <!-- TAB 4: MÉTRICAS (SIMPLIFICADAS SEM ORÇAMENTO) -->
+      <!-- TAB 4: DASHBOARD (AVALIAÇÃO GERAL E POR CONTA) -->
       <main id="tab-metricas" class="tab-view hidden">
-        <div class="card">
-          <div class="section-label">
-            <span>Distribuição de Despesas por Categoria</span>
-            <span id="totalBudgetPct">0,00 €</span>
+        <!-- KPIs Gerais / Conta Selecionada -->
+        <section class="summary-strip" style="margin-bottom: 14px;">
+          <div class="summary-pill">
+            <div class="label" id="kpiExpensesLabel">Despesas Mês</div>
+            <div id="kpiExpenses" class="value expense">0,00 €</div>
           </div>
-          <div id="categoryMetricsList" class="cat-progress-list"></div>
+          <div class="summary-pill">
+            <div class="label" id="kpiIncomeLabel">Receitas Mês</div>
+            <div id="kpiIncome" class="value income">0,00 €</div>
+          </div>
+          <div class="summary-pill">
+            <div class="label" id="kpiBalanceLabel">Património Total</div>
+            <div id="kpiBalance" class="value">0,00 €</div>
+          </div>
+        </section>
+
+        <!-- Filtro rápido de conta na Dashboard -->
+        <section id="accountsStrip" class="accounts-strip" style="margin-bottom: 14px;"></section>
+
+        <div class="desktop-grid">
+          <div class="card">
+            <div class="section-label">
+              <span>Avaliação por Conta (Mês Selecionado)</span>
+            </div>
+            <div id="dashboardAccountsGrid" class="dashboard-accounts-grid"></div>
+          </div>
+
+          <div class="card">
+            <div class="section-label">
+              <span>Distribuição de Despesas por Categoria</span>
+              <span id="totalBudgetPct">0,00 €</span>
+            </div>
+            <div id="categoryMetricsList" class="cat-progress-list"></div>
+          </div>
         </div>
       </main>
 
@@ -626,7 +641,7 @@
     </button>
     <button type="button" class="nav-item" data-tab="tab-metricas">
       <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
-      <span>Métricas</span>
+      <span>Dashboard</span>
     </button>
     <button type="button" class="nav-item" data-tab="tab-cloud">
       <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
@@ -634,9 +649,9 @@
     </button>
   </nav>
 
-  <script src="./xlsx.mini.min.js?v=14"></script>
-  <script src="./xlsx-export.js?v=14"></script>
-  <script src="./github-cloud.js?v=14"></script>
-  <script src="./app.js?v=14"></script>
+  <script src="./xlsx.mini.min.js?v=15"></script>
+  <script src="./xlsx-export.js?v=15"></script>
+  <script src="./github-cloud.js?v=15"></script>
+  <script src="./app.js?v=15"></script>
 </body>
 </html>

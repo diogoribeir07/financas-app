@@ -38,7 +38,7 @@ let state = {
   currentType: "Despesa",
   selectedAccount: "Dinheiro Geral",
   selectedToAccount: "Comida Mãe",
-  activeAccountFilter: "ALL",
+  activeAccountFilter: "Dinheiro Geral",
   selectedCategory: "Alimentação",
   selectedPayment: "MBWay",
   selectedMonth: new Date().toISOString().slice(0, 7),
@@ -298,7 +298,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }, 10000);
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js?v=14").catch(() => {});
+    navigator.serviceWorker.register("./sw.js?v=15").catch(() => {});
   }
 });
 
@@ -562,6 +562,13 @@ function renderAccountsStrip() {
         state.activeAccountFilter = acc.name;
         state.selectedAccount = acc.name;
         document.getElementById("historyAccountFilter").value = acc.name;
+        const regTab = document.getElementById("tab-registar");
+        const movTab = document.getElementById("tab-movimentos");
+        const metTab = document.getElementById("tab-metricas");
+        if (regTab.classList.contains("hidden") && movTab.classList.contains("hidden") && metTab.classList.contains("hidden")) {
+          switchTab("tab-registar");
+          return;
+        }
         renderAccountsStrip();
         renderFormAccountPills();
         updateUI();
@@ -580,6 +587,9 @@ function renderFormAccountPills() {
   const isSplitSelected = state.selectedAccount === "SPLIT_MAE_PAI";
   if (!isSplitSelected && !state.accounts.some((a) => a.name === state.selectedAccount) && state.accounts.length > 0) {
     state.selectedAccount = state.accounts[0].name;
+    if (state.activeAccountFilter !== "ALL") {
+      state.activeAccountFilter = state.selectedAccount;
+    }
   }
 
   state.accounts.forEach((acc) => {
@@ -588,11 +598,15 @@ function renderFormAccountPills() {
     pill.textContent = acc.name;
     pill.addEventListener("click", () => {
       state.selectedAccount = acc.name;
+      state.activeAccountFilter = acc.name;
+      const histFilter = document.getElementById("historyAccountFilter");
+      if (histFilter) histFilter.value = acc.name;
       if (state.selectedToAccount === acc.name) {
         const other = state.accounts.find((a) => a.name !== acc.name);
         if (other) state.selectedToAccount = other.name;
       }
       renderFormAccountPills();
+      updateUI();
     });
     fromBox.appendChild(pill);
 
@@ -614,7 +628,9 @@ function renderFormAccountPills() {
     splitPill.textContent = "Dividir 50/50 (Mãe + Pai)";
     splitPill.addEventListener("click", () => {
       state.selectedAccount = "SPLIT_MAE_PAI";
+      state.activeAccountFilter = "ALL";
       renderFormAccountPills();
+      updateUI();
     });
     fromBox.appendChild(splitPill);
   }
@@ -880,10 +896,73 @@ function updateUI() {
   document.getElementById("kpiIncome").textContent = formatEuro(income);
   document.getElementById("kpiBalance").textContent = formatEuro(displayBalance);
 
+  const compactNameEl = document.getElementById("compactAccName");
+  const compactBalEl = document.getElementById("compactAccBalance");
+  if (compactNameEl && compactBalEl) {
+    const activeAccObj = state.accounts.find((a) => a.name === state.selectedAccount) ||
+      state.accounts.find((a) => a.name === filterAcc);
+    if (state.selectedAccount === "SPLIT_MAE_PAI") {
+      const mae = state.accounts.find((a) => a.name === "Comida Mãe");
+      const pai = state.accounts.find((a) => a.name === "Comida Pai");
+      const sumSplit = Number(mae ? mae.current_balance : 0) + Number(pai ? pai.current_balance : 0);
+      compactNameEl.textContent = "Mãe + Pai (50/50)";
+      compactBalEl.textContent = formatEuro(sumSplit);
+    } else if (filterAcc === "ALL" && !activeAccObj) {
+      compactNameEl.textContent = "Visão Global";
+      compactBalEl.textContent = formatEuro(displayBalance);
+    } else if (activeAccObj) {
+      compactNameEl.textContent = activeAccObj.name;
+      compactBalEl.textContent = formatEuro(activeAccObj.current_balance);
+    }
+  }
+
   renderRecentList(monthTxs);
   renderFullHistory();
   renderMetrics(monthTxs, expenses);
+  renderDashboardAccounts();
   renderDesktopSidePanel(monthTxs, expenses);
+}
+
+function renderDashboardAccounts() {
+  const grid = document.getElementById("dashboardAccountsGrid");
+  if (!grid) return;
+  grid.innerHTML = "";
+
+  const allMonthTxs = state.transactions.filter(
+    (t) => (t.month_year || t.date.slice(0, 7)) === state.selectedMonth
+  );
+
+  state.accounts.forEach((acc) => {
+    const accExp = allMonthTxs
+      .filter((t) => t.type === "Despesa" && t.account === acc.name)
+      .reduce((s, t) => s + Number(t.amount || 0), 0);
+    const accInc = allMonthTxs
+      .filter((t) => t.type === "Receita" && t.account === acc.name)
+      .reduce((s, t) => s + Number(t.amount || 0), 0);
+
+    const card = document.createElement("div");
+    card.className = `dash-acc-card ${state.activeAccountFilter === acc.name ? "active" : ""}`;
+    card.innerHTML = `
+      <div class="dash-acc-header">
+        <span class="dash-acc-name">${acc.name}</span>
+        <span class="tx-account-badge">${getMonogram(acc.name, acc.icon)}</span>
+      </div>
+      <div class="dash-acc-bal">${formatEuro(acc.current_balance)}</div>
+      <div class="dash-acc-metrics">
+        <span>Gastos mês: <strong style="color: var(--danger);">${formatEuro(accExp)}</strong></span>
+        <span>Receitas: <strong style="color: var(--success);">${formatEuro(accInc)}</strong></span>
+      </div>
+      <button type="button" class="mini-action-btn dash-go-acc" style="width: 100%; margin-top: 2px;">Registar nesta conta →</button>
+    `;
+    card.querySelector(".dash-go-acc").addEventListener("click", () => {
+      state.selectedAccount = acc.name;
+      state.activeAccountFilter = acc.name;
+      const histFilter = document.getElementById("historyAccountFilter");
+      if (histFilter) histFilter.value = acc.name;
+      switchTab("tab-registar");
+    });
+    grid.appendChild(card);
+  });
 }
 
 function getCategoryMonogram(catName, txType) {
@@ -1260,6 +1339,11 @@ function bindEvents() {
         inp.focus();
       }
     });
+  }
+
+  const openDashBtn = document.getElementById("openDashboardQuickBtn");
+  if (openDashBtn) {
+    openDashBtn.addEventListener("click", () => switchTab("tab-metricas"));
   }
 
   const quickEditSugBtn = document.getElementById("quickEditSuggestionsBtn");

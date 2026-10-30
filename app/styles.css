@@ -1175,3 +1175,88 @@ body {
   padding: 0 2px;
 }
 
+.active-account-compact-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  font-size: 12.5px;
+}
+
+.active-account-compact-bar .aac-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.active-account-compact-bar .aac-sep {
+  color: var(--text-muted);
+}
+
+.active-account-compact-bar .aac-bal {
+  color: var(--text-primary);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.active-account-compact-bar .aac-dash-link {
+  margin-left: 4px;
+  font-size: 11.5px;
+}
+
+.dashboard-accounts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.dash-acc-card {
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dash-acc-card.active {
+  border-color: var(--border-strong);
+}
+
+.dash-acc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dash-acc-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dash-acc-bal {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-acc-metrics {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  padding-top: 6px;
+  border-top: 1px solid var(--border-color);
+}
+
+@media (max-width: 640px) {
+  .active-account-compact-bar .aac-dash-link {
+    display: none;
+  }
+}
+
