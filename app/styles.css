@@ -1109,3 +1109,69 @@ body {
   background: var(--bg-hover);
 }
 
+.chip-edit-trigger {
+  border-style: dashed !important;
+  color: var(--text-muted) !important;
+  font-size: 11px !important;
+  padding: 5px 9px !important;
+}
+
+.chip-edit-trigger:hover {
+  color: var(--text-primary) !important;
+  border-color: var(--border-strong) !important;
+}
+
+.chip-price-badge {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.chip-builder-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.chip-price-input {
+  max-width: 115px;
+}
+
+.editable-chips-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 34px;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+}
+
+.editable-chip-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.editable-chip-pill .remove-chip-x {
+  color: var(--danger);
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 2px;
+}
+

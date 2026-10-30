@@ -20,11 +20,14 @@ const DEFAULT_CATEGORIES = [
   { id: "salario", name: "Salário & Rendimento", icon: "SR", type: "Receita", budget: 0, color: "#71717A", chips: ["Salário", "Reembolso MBWay", "Trabalho Extra"] }
 ];
 
+const DEFAULT_QUICK_AMOUNTS = [1.5, 5, 10, 20, -1.5, -5];
+
 const STORAGE_KEYS = {
   TXS: "financas_transactions_v5",
   ACCOUNTS: "financas_accounts_v8",
   CATEGORIES: "financas_categories_v5",
   RECURRING: "financas_recurring_v5",
+  QUICK_AMOUNTS: "financas_quick_amounts_v1",
   PENDING: "financas_pending_sync_v5",
   CLOUD_CFG: "financas_cloud_config_v1",
   GIT_META: "financas_git_meta_v1",
@@ -41,6 +44,7 @@ let state = {
   selectedMonth: new Date().toISOString().slice(0, 7),
   accounts: [...DEFAULT_ACCOUNTS],
   categories: [...DEFAULT_CATEGORIES],
+  quickAmounts: [...DEFAULT_QUICK_AMOUNTS],
   recurring: [],
   transactions: [],
   pendingIds: new Set(),
@@ -200,6 +204,67 @@ function resolveAmountExpression() {
   updateAmountCalcPreview();
 }
 
+function formatQuickNum(num) {
+  const abs = Math.abs(Number(num) || 0);
+  const hasCents = Math.round(abs * 100) % 100 !== 0;
+  return abs.toLocaleString("pt-PT", {
+    minimumFractionDigits: hasCents ? 2 : 0,
+    maximumFractionDigits: 2
+  });
+}
+
+function applyQuickAmountDelta(delta) {
+  const inp = document.getElementById("amountInput");
+  if (!inp) return false;
+  const num = Number(delta) || 0;
+  if (num === 0) return false;
+  const absStr = formatQuickNum(num);
+  const val = inp.value.trim();
+  let appended = false;
+
+  if (!val) {
+    if (num > 0) inp.value = absStr;
+  } else if (/[+-]\s*$/.test(val)) {
+    if (num < 0) {
+      inp.value = val.replace(/[+-]\s*$/, `- ${absStr}`);
+    } else {
+      inp.value = `${val} ${absStr}`;
+    }
+    appended = true;
+  } else {
+    const op = num >= 0 ? "+" : "-";
+    inp.value = `${val} ${op} ${absStr}`;
+    appended = true;
+  }
+  updateAmountCalcPreview();
+  return appended;
+}
+
+function parseChipItem(raw) {
+  const str = String(raw || "").trim();
+  if (!str) return { label: "", amount: null, raw: "" };
+  const match = str.match(/^(.+?)\s*(?:[:=]|\()\s*(\d+(?:[.,]\d{1,2})?)\s*€?\s*\)?$/);
+  if (match) {
+    const label = match[1].trim();
+    const amount = Math.round(parseFloat(match[2].replace(",", ".")) * 100) / 100;
+    if (label && !Number.isNaN(amount) && amount > 0) {
+      return { label, amount, raw: `${label}: ${amount}` };
+    }
+  }
+  return { label: str, amount: null, raw: str };
+}
+
+function formatChipItem(label, amount) {
+  const cleanLabel = String(label || "").replace(/[,:]/g, " ").trim();
+  const num = amount !== null && amount !== undefined && String(amount).trim() !== ""
+    ? Math.round(parseFloat(String(amount).replace(",", ".")) * 100) / 100
+    : null;
+  if (num && !Number.isNaN(num) && num > 0) {
+    return `${cleanLabel}: ${num}`;
+  }
+  return cleanLabel;
+}
+
 // =========================================================================
 // INICIALIZAÇÃO
 // =========================================================================
@@ -233,7 +298,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }, 10000);
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js?v=13").catch(() => {});
+    navigator.serviceWorker.register("./sw.js?v=14").catch(() => {});
   }
 });
 
@@ -252,6 +317,12 @@ function loadLocalState() {
 
     const rawCats = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
     if (rawCats) state.categories = JSON.parse(rawCats);
+
+    const rawQa = localStorage.getItem(STORAGE_KEYS.QUICK_AMOUNTS);
+    if (rawQa) {
+      const parsedQa = JSON.parse(rawQa);
+      if (Array.isArray(parsedQa) && parsedQa.length > 0) state.quickAmounts = parsedQa;
+    }
 
     const rawRec = localStorage.getItem(STORAGE_KEYS.RECURRING) || localStorage.getItem("financas_recurring_v3");
     if (rawRec) state.recurring = JSON.parse(rawRec);
@@ -278,6 +349,7 @@ function saveLocalState() {
   localStorage.setItem(STORAGE_KEYS.TXS, JSON.stringify(state.transactions));
   localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(state.accounts));
   localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(state.categories));
+  localStorage.setItem(STORAGE_KEYS.QUICK_AMOUNTS, JSON.stringify(state.quickAmounts));
   localStorage.setItem(STORAGE_KEYS.RECURRING, JSON.stringify(state.recurring));
   localStorage.setItem(STORAGE_KEYS.PENDING, JSON.stringify(Array.from(state.pendingIds)));
   localStorage.setItem(STORAGE_KEYS.CLOUD_CFG, JSON.stringify(state.cloudConfig));
@@ -385,6 +457,7 @@ function processLocalRecurringIfNeeded(forceAll = false) {
 // =========================================================================
 function renderAll() {
   calculateAccountBalances();
+  renderQuickAmounts();
   renderAccountsStrip();
   renderFormAccountPills();
   renderCategories();
@@ -394,6 +467,38 @@ function renderAll() {
   renderRecurringManageTab();
   populateSelectDropdowns();
   updateUI();
+}
+
+function renderQuickAmounts() {
+  const row = document.getElementById("quickAmountsRow");
+  if (!row) return;
+  row.innerHTML = "";
+
+  const list = Array.isArray(state.quickAmounts) && state.quickAmounts.length > 0
+    ? state.quickAmounts
+    : DEFAULT_QUICK_AMOUNTS;
+
+  list.forEach((val) => {
+    const num = Number(val);
+    if (Number.isNaN(num) || num === 0) return;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "chip-btn";
+    const sign = num > 0 ? "+" : "-";
+    btn.textContent = `${sign}${formatQuickNum(num)}`;
+    btn.addEventListener("click", () => {
+      applyQuickAmountDelta(num);
+    });
+    row.appendChild(btn);
+  });
+
+  const editBtn = document.createElement("button");
+  editBtn.type = "button";
+  editBtn.className = "chip-btn chip-edit-trigger";
+  editBtn.title = "Personalizar botões de valores rápidos";
+  editBtn.textContent = "✎ Valores";
+  editBtn.addEventListener("click", () => openQuickAmountsModal());
+  row.appendChild(editBtn);
 }
 
 function renderAccountsStrip() {
@@ -558,6 +663,7 @@ function renderCategories() {
 
 function renderNoteSuggestions() {
   const box = document.getElementById("noteSuggestions");
+  if (!box) return;
   box.innerHTML = "";
   const catObj = state.categories.find((c) => c.name === state.selectedCategory);
   let chips = ["Café", "Almoço", "Compras"];
@@ -567,13 +673,30 @@ function renderNoteSuggestions() {
       : String(catObj.chips).split(",").map((s) => s.trim()).filter(Boolean);
   }
 
-  chips.forEach((chipText) => {
+  chips.forEach((rawChip) => {
+    const parsed = parseChipItem(rawChip);
+    if (!parsed.label) return;
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "chip-btn";
-    btn.textContent = chipText;
+    if (parsed.amount !== null) {
+      btn.innerHTML = `<span>${parsed.label}</span><span class="chip-price-badge">${formatQuickNum(parsed.amount)} €</span>`;
+    } else {
+      btn.textContent = parsed.label;
+    }
     btn.addEventListener("click", () => {
-      document.getElementById("descriptionInput").value = chipText;
+      const descInp = document.getElementById("descriptionInput");
+      if (parsed.amount !== null) {
+        const wasAppended = applyQuickAmountDelta(parsed.amount);
+        const curDesc = descInp.value.trim();
+        if (wasAppended && curDesc && !curDesc.toLowerCase().includes(parsed.label.toLowerCase())) {
+          descInp.value = `${curDesc} + ${parsed.label}`;
+        } else if (!curDesc || !wasAppended) {
+          descInp.value = parsed.label;
+        }
+      } else {
+        descInp.value = parsed.label;
+      }
     });
     box.appendChild(btn);
   });
@@ -979,6 +1102,47 @@ function openAccountModal(acc = null) {
   document.getElementById("accountModal").classList.remove("hidden");
 }
 
+let tempQuickAmounts = [];
+
+function renderCatChipsModalPreview() {
+  const preview = document.getElementById("catChipsListPreview");
+  const input = document.getElementById("catChipsInput");
+  if (!preview || !input) return;
+  preview.innerHTML = "";
+  const items = input.value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (items.length === 0) {
+    preview.innerHTML = `<span style="color: var(--text-muted); font-size: 11.5px;">Sem sugestões adicionadas.</span>`;
+    return;
+  }
+
+  items.forEach((raw, idx) => {
+    const parsed = parseChipItem(raw);
+    const pill = document.createElement("div");
+    pill.className = "editable-chip-pill";
+    const priceTxt = parsed.amount !== null ? ` · ${formatQuickNum(parsed.amount)} €` : "";
+    pill.innerHTML = `<span>${parsed.label}${priceTxt}</span><span class="remove-chip-x" title="Remover">×</span>`;
+    pill.addEventListener("click", (e) => {
+      if (e.target.classList.contains("remove-chip-x")) {
+        items.splice(idx, 1);
+        input.value = items.join(", ");
+        renderCatChipsModalPreview();
+      } else {
+        document.getElementById("newChipLabelInput").value = parsed.label;
+        document.getElementById("newChipPriceInput").value = parsed.amount !== null ? String(parsed.amount).replace(".", ",") : "";
+        items.splice(idx, 1);
+        input.value = items.join(", ");
+        renderCatChipsModalPreview();
+        document.getElementById("newChipLabelInput").focus();
+      }
+    });
+    preview.appendChild(pill);
+  });
+}
+
 function openCategoryModal(cat = null) {
   document.getElementById("categoryModalTitle").textContent = cat ? "Editar Categoria" : "Nova Categoria";
   document.getElementById("catIdInput").value = cat ? cat.id : "";
@@ -988,7 +1152,39 @@ function openCategoryModal(cat = null) {
   document.getElementById("catBudgetInput").value = cat ? cat.budget : 150;
   const chipsStr = cat && cat.chips ? (Array.isArray(cat.chips) ? cat.chips.join(", ") : cat.chips) : "";
   document.getElementById("catChipsInput").value = chipsStr;
+  document.getElementById("newChipLabelInput").value = "";
+  document.getElementById("newChipPriceInput").value = "";
+  renderCatChipsModalPreview();
   document.getElementById("categoryModal").classList.remove("hidden");
+}
+
+function renderQuickAmountsModalList() {
+  const box = document.getElementById("quickAmountsEditList");
+  if (!box) return;
+  box.innerHTML = "";
+  if (tempQuickAmounts.length === 0) {
+    box.innerHTML = `<span style="color: var(--text-muted); font-size: 11.5px;">Nenhum botão configurado.</span>`;
+    return;
+  }
+  tempQuickAmounts.forEach((val, idx) => {
+    const num = Number(val);
+    const sign = num > 0 ? "+" : "-";
+    const pill = document.createElement("div");
+    pill.className = "editable-chip-pill";
+    pill.innerHTML = `<span>${sign}${formatQuickNum(num)} €</span><span class="remove-chip-x" title="Remover">×</span>`;
+    pill.addEventListener("click", () => {
+      tempQuickAmounts.splice(idx, 1);
+      renderQuickAmountsModalList();
+    });
+    box.appendChild(pill);
+  });
+}
+
+function openQuickAmountsModal() {
+  tempQuickAmounts = [...(Array.isArray(state.quickAmounts) && state.quickAmounts.length > 0 ? state.quickAmounts : DEFAULT_QUICK_AMOUNTS)];
+  document.getElementById("newQuickAmountInput").value = "";
+  renderQuickAmountsModalList();
+  document.getElementById("quickAmountsModal").classList.remove("hidden");
 }
 
 function openRecurringModal(rec = null) {
@@ -1066,28 +1262,110 @@ function bindEvents() {
     });
   }
 
-  document.querySelectorAll(".quick-amounts .chip-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const inp = document.getElementById("amountInput");
-      const delta = parseFloat(btn.dataset.add) || 0;
-      const absStr = Math.abs(delta).toString().replace(".", ",");
-      const val = inp.value.trim();
-
-      if (!val) {
-        if (delta > 0) inp.value = absStr;
-      } else if (/[+-]\s*$/.test(val)) {
-        if (delta < 0) {
-          inp.value = val.replace(/[+-]\s*$/, `- ${absStr}`);
-        } else {
-          inp.value = `${val} ${absStr}`;
-        }
-      } else {
-        const op = delta >= 0 ? "+" : "-";
-        inp.value = `${val} ${op} ${absStr}`;
-      }
-      updateAmountCalcPreview();
+  const quickEditSugBtn = document.getElementById("quickEditSuggestionsBtn");
+  if (quickEditSugBtn) {
+    quickEditSugBtn.addEventListener("click", () => {
+      const activeCat = state.categories.find((c) => c.name === state.selectedCategory);
+      openCategoryModal(activeCat || null);
+      setTimeout(() => document.getElementById("newChipLabelInput").focus(), 60);
     });
-  });
+  }
+
+  const addChipBtn = document.getElementById("addChipItemBtn");
+  if (addChipBtn) {
+    const triggerAddChip = () => {
+      const labelInp = document.getElementById("newChipLabelInput");
+      const priceInp = document.getElementById("newChipPriceInput");
+      const chipsInp = document.getElementById("catChipsInput");
+      const label = labelInp.value.trim();
+      if (!label) {
+        showToast("Escreve o nome da sugestão (ex: Almoço)");
+        return;
+      }
+      const formatted = formatChipItem(label, priceInp.value);
+      const current = chipsInp.value
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      current.push(formatted);
+      chipsInp.value = current.join(", ");
+      labelInp.value = "";
+      priceInp.value = "";
+      renderCatChipsModalPreview();
+      labelInp.focus();
+    };
+    addChipBtn.addEventListener("click", triggerAddChip);
+    document.getElementById("newChipLabelInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        triggerAddChip();
+      }
+    });
+    document.getElementById("newChipPriceInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        triggerAddChip();
+      }
+    });
+    document.getElementById("catChipsInput").addEventListener("input", () => renderCatChipsModalPreview());
+  }
+
+  const closeQaBtn = document.getElementById("closeQuickAmountsModal");
+  if (closeQaBtn) {
+    closeQaBtn.addEventListener("click", () => document.getElementById("quickAmountsModal").classList.add("hidden"));
+  }
+
+  const addQaBtn = document.getElementById("addQuickAmountBtn");
+  if (addQaBtn) {
+    const triggerAddQa = () => {
+      const inp = document.getElementById("newQuickAmountInput");
+      const raw = inp.value.trim().replace(",", ".");
+      const num = Math.round(parseFloat(raw) * 100) / 100;
+      if (Number.isNaN(num) || num === 0) {
+        showToast("Introduz um valor numérico (ex: 2,85 ou -1,50)");
+        return;
+      }
+      tempQuickAmounts.push(num);
+      inp.value = "";
+      renderQuickAmountsModalList();
+      inp.focus();
+    };
+    addQaBtn.addEventListener("click", triggerAddQa);
+    document.getElementById("newQuickAmountInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        triggerAddQa();
+      }
+    });
+  }
+
+  const resetQaBtn = document.getElementById("resetQuickAmountsBtn");
+  if (resetQaBtn) {
+    resetQaBtn.addEventListener("click", () => {
+      tempQuickAmounts = [...DEFAULT_QUICK_AMOUNTS];
+      renderQuickAmountsModalList();
+    });
+  }
+
+  const qaForm = document.getElementById("quickAmountsForm");
+  if (qaForm) {
+    qaForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const pendingVal = document.getElementById("newQuickAmountInput").value.trim().replace(",", ".");
+      if (pendingVal) {
+        const num = Math.round(parseFloat(pendingVal) * 100) / 100;
+        if (!Number.isNaN(num) && num !== 0) tempQuickAmounts.push(num);
+      }
+      state.quickAmounts = tempQuickAmounts.length > 0 ? [...tempQuickAmounts] : [...DEFAULT_QUICK_AMOUNTS];
+      const clock = Math.max(Date.now(), (Number(gitMeta.maxStamp) || 0) + 1);
+      gitMeta.quickAmountsStamp = clock;
+      gitMeta.maxStamp = clock;
+      saveLocalState();
+      renderQuickAmounts();
+      document.getElementById("quickAmountsModal").classList.add("hidden");
+      showToast("Botões de valores rápidos atualizados");
+    });
+  }
 
   document.querySelectorAll("#paymentPills .pay-pill").forEach((pill) => {
     pill.addEventListener("click", () => {
@@ -1606,6 +1884,10 @@ function applyMergedToState(merged) {
     state.transactions = FinCloud.sortTransactions(merged.transactions);
     if (merged.accounts.length > 0) state.accounts = merged.accounts;
     if (merged.categories.length > 0) state.categories = merged.categories;
+    if (Array.isArray(merged.quick_amounts) && merged.quick_amounts.length > 0) {
+      state.quickAmounts = merged.quick_amounts;
+      gitMeta.quickAmountsStamp = Number(merged.quick_amounts_updated_at) || gitMeta.quickAmountsStamp || 0;
+    }
     state.recurring = merged.recurring;
     gitMeta.tombstones = merged.tombstones;
     gitMeta.maxStamp = Math.max(gitMeta.maxStamp || 0, FinCloud.maxStamp(merged));

@@ -6,6 +6,8 @@ tests/__pycache__/
 # Ficheiros locais do utilizador (Excel e dados confidenciais)
 *.xlsx
 Gestao_Financeira.xlsx
+TokenPersonal.txt
+*.txt
 
 # Ficheiros locais com credenciais ou cache local
 sync_service/cloud_config.json

@@ -209,11 +209,20 @@ def merge_snapshots(local: Dict[str, Any], remote: Optional[Dict[str, Any]], now
 
         out[col] = items
         out["tombstones"][col] = {k: (int(v) if float(v).is_integer() else v) for k, v in tomb.items()}
+    if isinstance(remote.get("quick_amounts"), list):
+        out["quick_amounts"] = remote["quick_amounts"]
+        out["quick_amounts_updated_at"] = int(remote.get("quick_amounts_updated_at") or 0)
+    elif isinstance(local.get("quick_amounts"), list):
+        out["quick_amounts"] = local["quick_amounts"]
+        out["quick_amounts_updated_at"] = int(local.get("quick_amounts_updated_at") or 0)
     return out
 
 
 def canonical(snapshot: Dict[str, Any]) -> str:
     view: Dict[str, Any] = {"tombstones": {}}
+    if isinstance(snapshot.get("quick_amounts"), list):
+        view["quick_amounts"] = snapshot["quick_amounts"]
+        view["quick_amounts_updated_at"] = int(snapshot.get("quick_amounts_updated_at") or 0)
     for col in COLLECTIONS:
         view[col] = sorted(snapshot.get(col) or [], key=lambda e: str(e.get("id")))
         view["tombstones"][col] = (snapshot.get("tombstones") or {}).get(col) or {}

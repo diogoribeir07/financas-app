@@ -60,6 +60,7 @@
       repoKey: repoKey || "",
       initialized: false,
       maxStamp: 0,
+      quickAmountsStamp: 0,
       seen: emptyCollectionMap(),
       tombstones: emptyCollectionMap()
     };
@@ -72,6 +73,7 @@
     const out = newMeta(meta.repoKey);
     out.initialized = !!meta.initialized;
     out.maxStamp = Number(meta.maxStamp) || 0;
+    out.quickAmountsStamp = Number(meta.quickAmountsStamp) || 0;
     COLLECTIONS.forEach((c) => {
       out.seen[c] = Object.assign({}, (meta.seen || {})[c]);
       out.tombstones[c] = Object.assign({}, (meta.tombstones || {})[c]);
@@ -83,6 +85,8 @@
   function maxStamp(snapshot) {
     let max = 0;
     if (!snapshot) return max;
+    const qaStamp = Number(snapshot.quick_amounts_updated_at) || 0;
+    if (qaStamp > max) max = qaStamp;
     COLLECTIONS.forEach((col) => {
       (snapshot[col] || []).forEach((e) => {
         const v = Number(e && e.updated_at) || 0;
@@ -163,6 +167,10 @@
       updated_by: deviceName || "",
       tombstones: {}
     };
+    if (Array.isArray(data.quickAmounts) && data.quickAmounts.length > 0) {
+      snap.quick_amounts = data.quickAmounts.map((n) => Number(n)).filter((n) => !Number.isNaN(n) && n !== 0);
+      snap.quick_amounts_updated_at = Number(meta && meta.quickAmountsStamp) || 0;
+    }
     COLLECTIONS.forEach((col) => {
       snap[col] = (data[col] || [])
         .filter((e) => e && e.id !== undefined && e.id !== null)
@@ -223,6 +231,27 @@
       out[col] = items;
       out.tombstones[col] = tomb;
     });
+
+    const lQa = Array.isArray(local.quick_amounts) ? local.quick_amounts : null;
+    const rQa = Array.isArray(remote.quick_amounts) ? remote.quick_amounts : null;
+    const lQaTs = Number(local.quick_amounts_updated_at) || 0;
+    const rQaTs = Number(remote.quick_amounts_updated_at) || 0;
+    if (lQa && rQa) {
+      if (lQaTs > rQaTs) {
+        out.quick_amounts = lQa;
+        out.quick_amounts_updated_at = lQaTs;
+      } else {
+        out.quick_amounts = rQa;
+        out.quick_amounts_updated_at = rQaTs;
+      }
+    } else if (rQa) {
+      out.quick_amounts = rQa;
+      out.quick_amounts_updated_at = rQaTs;
+    } else if (lQa) {
+      out.quick_amounts = lQa;
+      out.quick_amounts_updated_at = lQaTs;
+    }
+
     return out;
   }
 
@@ -237,6 +266,10 @@
   /** Forma canónica (ordem estável) para comparar snapshots sem ruído. */
   function canonical(snapshot) {
     const view = { tombstones: {} };
+    if (Array.isArray(snapshot.quick_amounts)) {
+      view.quick_amounts = snapshot.quick_amounts;
+      view.quick_amounts_updated_at = Number(snapshot.quick_amounts_updated_at) || 0;
+    }
     COLLECTIONS.forEach((col) => {
       view[col] = (snapshot[col] || [])
         .slice()
