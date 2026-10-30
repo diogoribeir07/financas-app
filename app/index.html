@@ -72,7 +72,7 @@
         <div class="brand">
           <div class="brand-mark">FP</div>
           <div>
-            <div class="brand-title" id="pageHeaderTitle">Painel Financeiro</div>
+            <div class="brand-title" id="pageHeaderTitle">Finanças Pessoais</div>
             <div class="brand-subtitle">
               <span id="syncDot" class="status-dot"></span>
               <span id="syncStatusText">Excel Sincronizado</span>
@@ -80,12 +80,6 @@
           </div>
         </div>
         <div class="header-actions">
-          <div id="activeAccountCompactBar" class="active-account-compact-bar">
-            <span class="aac-label" id="compactAccName">Dinheiro Geral</span>
-            <span class="aac-sep">·</span>
-            <span class="aac-bal" id="compactAccBalance">0,00 €</span>
-            <button type="button" class="link-btn aac-dash-link" id="openDashboardQuickBtn">Ver Dashboard</button>
-          </div>
           <input type="month" id="globalMonthPicker" class="input-field" style="padding: 6px 10px; font-size: 12px; width: auto;" />
           <button id="themeToggleBtn" class="icon-btn" title="Alternar Tema Claro/Escuro">
             <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.75" fill="none">
@@ -137,7 +131,10 @@
 
               <!-- Seleção de Conta Origem -->
               <div class="section-label">
-                <span id="fromAccountLabel">Conta</span>
+                <div class="acc-label-wrap">
+                  <span id="fromAccountLabel">Conta</span>
+                  <span id="selectedAccountBalanceBadge" class="selected-acc-badge"></span>
+                </div>
                 <button type="button" class="link-btn" id="openNewAccountQuickBtn">Gerir Contas</button>
               </div>
               <div id="formAccountPills" class="account-pills"></div>
@@ -300,40 +297,46 @@
 
       <!-- TAB 4: DASHBOARD (AVALIAÇÃO GERAL E POR CONTA) -->
       <main id="tab-metricas" class="tab-view hidden">
-        <!-- KPIs Gerais / Conta Selecionada -->
-        <section class="summary-strip" style="margin-bottom: 14px;">
-          <div class="summary-pill">
-            <div class="label" id="kpiExpensesLabel">Despesas Mês</div>
-            <div id="kpiExpenses" class="value expense">0,00 €</div>
+        <!-- Hero Card: Património Líquido Total -->
+        <div class="dash-hero-card">
+          <div class="dash-hero-header">
+            <span class="dash-hero-title">Património Líquido Total</span>
+            <span class="tx-account-badge">Global</span>
           </div>
-          <div class="summary-pill">
-            <div class="label" id="kpiIncomeLabel">Receitas Mês</div>
-            <div id="kpiIncome" class="value income">0,00 €</div>
+          <div class="dash-hero-value" id="kpiBalance">0,00 €</div>
+          <div class="dash-hero-footer">
+            <span>Balanço do Mês: <strong id="kpiNetMonth" style="color: var(--text-primary);">0,00 €</strong></span>
           </div>
-          <div class="summary-pill">
-            <div class="label" id="kpiBalanceLabel">Património Total</div>
-            <div id="kpiBalance" class="value">0,00 €</div>
-          </div>
-        </section>
+        </div>
 
-        <!-- Filtro rápido de conta na Dashboard -->
-        <section id="accountsStrip" class="accounts-strip" style="margin-bottom: 14px;"></section>
-
-        <div class="desktop-grid">
-          <div class="card">
-            <div class="section-label">
-              <span>Avaliação por Conta (Mês Selecionado)</span>
-            </div>
-            <div id="dashboardAccountsGrid" class="dashboard-accounts-grid"></div>
+        <!-- Grelha de 2 Colunas: Despesas e Receitas do Mês -->
+        <div class="dash-summary-row">
+          <div class="dash-summary-card expense">
+            <div class="dsc-label">Despesas Mês</div>
+            <div class="dsc-value" id="kpiExpenses">0,00 €</div>
           </div>
-
-          <div class="card">
-            <div class="section-label">
-              <span>Distribuição de Despesas por Categoria</span>
-              <span id="totalBudgetPct">0,00 €</span>
-            </div>
-            <div id="categoryMetricsList" class="cat-progress-list"></div>
+          <div class="dash-summary-card income">
+            <div class="dsc-label">Receitas Mês</div>
+            <div class="dsc-value" id="kpiIncome">0,00 €</div>
           </div>
+        </div>
+
+        <!-- Avaliação por Conta -->
+        <div class="card" style="margin-bottom: 14px;">
+          <div class="section-label">
+            <span>Avaliação por Conta</span>
+            <span style="font-size: 11px; text-transform: none; color: var(--text-muted);">Saldos e Movimentos</span>
+          </div>
+          <div id="dashboardAccountsGrid" class="dashboard-accounts-grid"></div>
+        </div>
+
+        <!-- Distribuição por Categoria -->
+        <div class="card">
+          <div class="section-label">
+            <span>Gastos por Categoria (Mês)</span>
+            <span id="totalBudgetPct">0,00 €</span>
+          </div>
+          <div id="categoryMetricsList" class="cat-progress-list"></div>
         </div>
       </main>
 
@@ -649,9 +652,9 @@
     </button>
   </nav>
 
-  <script src="./xlsx.mini.min.js?v=15"></script>
-  <script src="./xlsx-export.js?v=15"></script>
-  <script src="./github-cloud.js?v=15"></script>
-  <script src="./app.js?v=15"></script>
+  <script src="./xlsx.mini.min.js?v=16"></script>
+  <script src="./xlsx-export.js?v=16"></script>
+  <script src="./github-cloud.js?v=16"></script>
+  <script src="./app.js?v=16"></script>
 </body>
 </html>

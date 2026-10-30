@@ -1175,51 +1175,128 @@ body {
   padding: 0 2px;
 }
 
-.active-account-compact-bar {
+/* Badge de saldo da conta selecionada no formulário */
+.acc-label-wrap {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
-  border-radius: var(--radius-md);
+}
+
+.selected-acc-badge {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-primary);
   background: var(--bg-elevated);
+  padding: 2px 8px;
+  border-radius: 6px;
   border: 1px solid var(--border-color);
-  font-size: 12.5px;
+  text-transform: none;
 }
 
-.active-account-compact-bar .aac-label {
-  color: var(--text-secondary);
-  font-weight: 500;
+.acc-pill.selected .pill-bal {
+  margin-left: 6px;
+  opacity: 0.85;
+  font-weight: 400;
 }
 
-.active-account-compact-bar .aac-sep {
+/* Nova Dashboard Móvel Otimizada */
+.dash-hero-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: 18px;
+  margin-bottom: 12px;
+}
+
+.dash-hero-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.dash-hero-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--text-muted);
 }
 
-.active-account-compact-bar .aac-bal {
-  color: var(--text-primary);
+.dash-hero-value {
+  font-size: 32px;
   font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  margin-bottom: 8px;
   font-variant-numeric: tabular-nums;
 }
 
-.active-account-compact-bar .aac-dash-link {
-  margin-left: 4px;
-  font-size: 11.5px;
+.dash-hero-footer {
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.dash-summary-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.dash-summary-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+}
+
+.dash-summary-card .dsc-label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.dash-summary-card .dsc-value {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-summary-card.expense .dsc-value {
+  color: var(--expense-color);
+}
+
+.dash-summary-card.income .dsc-value {
+  color: var(--income-color);
 }
 
 .dashboard-accounts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: 1fr;
   gap: 10px;
 }
 
+@media (min-width: 640px) {
+  .dashboard-accounts-grid {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+}
+
 .dash-acc-card {
-  padding: 12px;
-  border-radius: var(--radius-md);
+  padding: 14px;
+  border-radius: var(--radius-lg);
   background: var(--bg-elevated);
   border: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .dash-acc-card.active {
@@ -1232,14 +1309,20 @@ body {
   align-items: center;
 }
 
+.dash-acc-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .dash-acc-name {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .dash-acc-bal {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
@@ -1248,15 +1331,9 @@ body {
 .dash-acc-metrics {
   display: flex;
   justify-content: space-between;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--text-secondary);
-  padding-top: 6px;
+  padding-top: 8px;
   border-top: 1px solid var(--border-color);
-}
-
-@media (max-width: 640px) {
-  .active-account-compact-bar .aac-dash-link {
-    display: none;
-  }
 }
 

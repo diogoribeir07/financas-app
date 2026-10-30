@@ -298,7 +298,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }, 10000);
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js?v=15").catch(() => {});
+    navigator.serviceWorker.register("./sw.js?v=16").catch(() => {});
   }
 });
 
@@ -592,10 +592,26 @@ function renderFormAccountPills() {
     }
   }
 
+  const badgeEl = document.getElementById("selectedAccountBalanceBadge");
+  if (badgeEl) {
+    if (isSplitSelected) {
+      const mae = state.accounts.find((a) => a.name === "Comida Mãe");
+      const pai = state.accounts.find((a) => a.name === "Comida Pai");
+      const splitTotal = Number(mae ? mae.current_balance : 0) + Number(pai ? pai.current_balance : 0);
+      badgeEl.textContent = `Saldo conjunto: ${formatEuro(splitTotal)}`;
+    } else {
+      const selAcc = state.accounts.find((a) => a.name === state.selectedAccount);
+      badgeEl.textContent = selAcc ? `Saldo: ${formatEuro(selAcc.current_balance)}` : "";
+    }
+  }
+
   state.accounts.forEach((acc) => {
+    const isSelected = acc.name === state.selectedAccount;
     const pill = document.createElement("div");
-    pill.className = `acc-pill ${acc.name === state.selectedAccount ? "selected" : ""}`;
-    pill.textContent = acc.name;
+    pill.className = `acc-pill ${isSelected ? "selected" : ""}`;
+    pill.innerHTML = isSelected
+      ? `<span>${acc.name}</span><span class="pill-bal">· ${formatEuro(acc.current_balance)}</span>`
+      : `<span>${acc.name}</span>`;
     pill.addEventListener("click", () => {
       state.selectedAccount = acc.name;
       state.activeAccountFilter = acc.name;
@@ -892,28 +908,22 @@ function updateUI() {
     document.getElementById("kpiBalanceLabel").textContent = `Saldo ${filterAcc.split(" ")[0]}`;
   }
 
-  document.getElementById("kpiExpenses").textContent = formatEuro(expenses);
-  document.getElementById("kpiIncome").textContent = formatEuro(income);
-  document.getElementById("kpiBalance").textContent = formatEuro(displayBalance);
+  const allAccountsTotal = state.accounts.reduce((acc, a) => acc + Number(a.current_balance || 0), 0);
+  const balEl = document.getElementById("kpiBalance");
+  if (balEl) balEl.textContent = formatEuro(allAccountsTotal);
 
-  const compactNameEl = document.getElementById("compactAccName");
-  const compactBalEl = document.getElementById("compactAccBalance");
-  if (compactNameEl && compactBalEl) {
-    const activeAccObj = state.accounts.find((a) => a.name === state.selectedAccount) ||
-      state.accounts.find((a) => a.name === filterAcc);
-    if (state.selectedAccount === "SPLIT_MAE_PAI") {
-      const mae = state.accounts.find((a) => a.name === "Comida Mãe");
-      const pai = state.accounts.find((a) => a.name === "Comida Pai");
-      const sumSplit = Number(mae ? mae.current_balance : 0) + Number(pai ? pai.current_balance : 0);
-      compactNameEl.textContent = "Mãe + Pai (50/50)";
-      compactBalEl.textContent = formatEuro(sumSplit);
-    } else if (filterAcc === "ALL" && !activeAccObj) {
-      compactNameEl.textContent = "Visão Global";
-      compactBalEl.textContent = formatEuro(displayBalance);
-    } else if (activeAccObj) {
-      compactNameEl.textContent = activeAccObj.name;
-      compactBalEl.textContent = formatEuro(activeAccObj.current_balance);
-    }
+  const expEl = document.getElementById("kpiExpenses");
+  if (expEl) expEl.textContent = formatEuro(expenses);
+
+  const incEl = document.getElementById("kpiIncome");
+  if (incEl) incEl.textContent = formatEuro(income);
+
+  const netMonth = income - expenses;
+  const netEl = document.getElementById("kpiNetMonth");
+  if (netEl) {
+    const sign = netMonth > 0 ? "+" : "";
+    netEl.textContent = `${sign}${formatEuro(netMonth)}`;
+    netEl.style.color = netMonth >= 0 ? "var(--income-color)" : "var(--expense-color)";
   }
 
   renderRecentList(monthTxs);
@@ -941,16 +951,18 @@ function renderDashboardAccounts() {
       .reduce((s, t) => s + Number(t.amount || 0), 0);
 
     const card = document.createElement("div");
-    card.className = `dash-acc-card ${state.activeAccountFilter === acc.name ? "active" : ""}`;
+    card.className = `dash-acc-card ${state.selectedAccount === acc.name ? "active" : ""}`;
     card.innerHTML = `
       <div class="dash-acc-header">
-        <span class="dash-acc-name">${acc.name}</span>
-        <span class="tx-account-badge">${getMonogram(acc.name, acc.icon)}</span>
+        <div class="dash-acc-name-wrap">
+          <span class="tx-account-badge">${getMonogram(acc.name, acc.icon)}</span>
+          <span class="dash-acc-name">${acc.name}</span>
+        </div>
+        <div class="dash-acc-bal">${formatEuro(acc.current_balance)}</div>
       </div>
-      <div class="dash-acc-bal">${formatEuro(acc.current_balance)}</div>
       <div class="dash-acc-metrics">
-        <span>Gastos mês: <strong style="color: var(--danger);">${formatEuro(accExp)}</strong></span>
-        <span>Receitas: <strong style="color: var(--success);">${formatEuro(accInc)}</strong></span>
+        <span>Gastos: <strong style="color: var(--expense-color);">${formatEuro(accExp)}</strong></span>
+        <span>Receitas: <strong style="color: var(--income-color);">${formatEuro(accInc)}</strong></span>
       </div>
       <button type="button" class="mini-action-btn dash-go-acc" style="width: 100%; margin-top: 2px;">Registar nesta conta →</button>
     `;
