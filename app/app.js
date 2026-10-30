@@ -298,7 +298,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }, 10000);
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js?v=16").catch(() => {});
+    navigator.serviceWorker.register("./sw.js?v=17").catch(() => {});
   }
 });
 
@@ -503,41 +503,45 @@ function renderQuickAmounts() {
 
 function renderAccountsStrip() {
   const strip = document.getElementById("accountsStrip");
-  strip.innerHTML = "";
-
   const totalPatrimonio = state.accounts.reduce((acc, a) => acc + Number(a.current_balance || 0), 0);
 
-  const allCard = document.createElement("div");
-  allCard.className = `account-card-mini ${state.activeAccountFilter === "ALL" ? "active" : ""}`;
-  allCard.innerHTML = `
-    <div class="acc-top"><span>Visão Global</span><span>TOTAL</span></div>
-    <div class="acc-bal">${formatEuro(totalPatrimonio)}</div>
-  `;
-  allCard.addEventListener("click", () => {
-    state.activeAccountFilter = "ALL";
-    document.getElementById("historyAccountFilter").value = "ALL";
-    renderAccountsStrip();
-    updateUI();
-  });
-  strip.appendChild(allCard);
+  if (strip) {
+    strip.innerHTML = "";
 
-  state.accounts.forEach((acc) => {
-    const card = document.createElement("div");
-    card.className = `account-card-mini ${state.activeAccountFilter === acc.name ? "active" : ""}`;
-    card.innerHTML = `
-      <div class="acc-top"><span>${acc.name}</span><span>${getMonogram(acc.name, acc.icon)}</span></div>
-      <div class="acc-bal">${formatEuro(acc.current_balance)}</div>
+    const allCard = document.createElement("div");
+    allCard.className = `account-card-mini ${state.activeAccountFilter === "ALL" ? "active" : ""}`;
+    allCard.innerHTML = `
+      <div class="acc-top"><span>Visão Global</span><span>TOTAL</span></div>
+      <div class="acc-bal">${formatEuro(totalPatrimonio)}</div>
     `;
-    card.addEventListener("click", () => {
-      state.activeAccountFilter = acc.name;
-      state.selectedAccount = acc.name;
-      document.getElementById("historyAccountFilter").value = acc.name;
+    allCard.addEventListener("click", () => {
+      state.activeAccountFilter = "ALL";
+      const hist = document.getElementById("historyAccountFilter");
+      if (hist) hist.value = "ALL";
       renderAccountsStrip();
-      renderFormAccountPills();
       updateUI();
     });
-    strip.appendChild(card);
-  });
+    strip.appendChild(allCard);
+
+    state.accounts.forEach((acc) => {
+      const card = document.createElement("div");
+      card.className = `account-card-mini ${state.activeAccountFilter === acc.name ? "active" : ""}`;
+      card.innerHTML = `
+        <div class="acc-top"><span>${acc.name}</span><span>${getMonogram(acc.name, acc.icon)}</span></div>
+        <div class="acc-bal">${formatEuro(acc.current_balance)}</div>
+      `;
+      card.addEventListener("click", () => {
+        state.activeAccountFilter = acc.name;
+        state.selectedAccount = acc.name;
+        const hist = document.getElementById("historyAccountFilter");
+        if (hist) hist.value = acc.name;
+        renderAccountsStrip();
+        renderFormAccountPills();
+        updateUI();
+      });
+      strip.appendChild(card);
+    });
+  }
 
   // Renderizar também a lista de contas na Sidebar Esquerda do Computador
   const sideList = document.getElementById("sidebarAccountsList");
@@ -899,13 +903,14 @@ function updateUI() {
     .reduce((acc, t) => acc + Number(t.amount || 0), 0);
 
   let displayBalance = income - expenses;
+  const kpiLbl = document.getElementById("kpiBalanceLabel");
   if (filterAcc === "ALL") {
     displayBalance = state.accounts.reduce((acc, a) => acc + Number(a.current_balance || 0), 0);
-    document.getElementById("kpiBalanceLabel").textContent = "Património Total";
+    if (kpiLbl) kpiLbl.textContent = "Património Total";
   } else {
     const accObj = state.accounts.find((a) => a.name === filterAcc);
     if (accObj) displayBalance = accObj.current_balance;
-    document.getElementById("kpiBalanceLabel").textContent = `Saldo ${filterAcc.split(" ")[0]}`;
+    if (kpiLbl) kpiLbl.textContent = `Saldo ${filterAcc.split(" ")[0]}`;
   }
 
   const allAccountsTotal = state.accounts.reduce((acc, a) => acc + Number(a.current_balance || 0), 0);
