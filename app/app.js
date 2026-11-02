@@ -38,7 +38,7 @@ let state = {
   currentType: "Despesa",
   selectedAccount: "Dinheiro Geral",
   selectedToAccount: "Comida Mãe",
-  activeAccountFilter: "Dinheiro Geral",
+  activeAccountFilter: "ALL",
   selectedCategory: "Alimentação",
   selectedPayment: "MBWay",
   selectedMonth: new Date().toISOString().slice(0, 7),
@@ -298,7 +298,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }, 10000);
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js?v=17").catch(() => {});
+    navigator.serviceWorker.register("./sw.js?v=18").catch(() => {});
   }
 });
 
@@ -879,27 +879,51 @@ function populateSelectDropdowns() {
 // =========================================================================
 // ATUALIZAÇÃO DE KPIS, LISTAS E MÉTRICAS
 // =========================================================================
+function matchesAccountFilter(accName, filterAcc) {
+  if (!filterAcc || filterAcc === "ALL") return true;
+  if (accName === filterAcc) return true;
+  if (filterAcc === "Dinheiro Pai" && accName === "Comida Pai") return true;
+  if (filterAcc === "Comida Pai" && accName === "Dinheiro Pai") return true;
+  if (filterAcc === "Dinheiro Mãe" && accName === "Comida Mãe") return true;
+  if (filterAcc === "Comida Mãe" && accName === "Dinheiro Mãe") return true;
+  return false;
+}
+
 function updateUI() {
   calculateAccountBalances();
   renderAccountsStrip();
 
   const filterAcc = state.activeAccountFilter;
-  document.getElementById("activeAccountFilterLabel").textContent =
-    filterAcc === "ALL" ? "" : `(${filterAcc})`;
+  const filterLbl = document.getElementById("activeAccountFilterLabel");
+  if (filterLbl) {
+    if (filterAcc === "ALL") {
+      filterLbl.innerHTML = "";
+    } else {
+      filterLbl.innerHTML = `(${filterAcc}) <button type="button" id="clearAccFilterBtn" class="section-action-link" style="margin-left: 6px;">Ver todas</button>`;
+      const clearBtn = document.getElementById("clearAccFilterBtn");
+      if (clearBtn) {
+        clearBtn.addEventListener("click", () => {
+          state.activeAccountFilter = "ALL";
+          const hist = document.getElementById("historyAccountFilter");
+          if (hist) hist.value = "ALL";
+          updateUI();
+        });
+      }
+    }
+  }
 
   const monthTxs = state.transactions.filter((t) => {
     const matchesMonth = (t.month_year || t.date.slice(0, 7)) === state.selectedMonth;
     if (!matchesMonth) return false;
-    if (filterAcc === "ALL") return true;
-    return t.account === filterAcc || t.to_account === filterAcc;
+    return matchesAccountFilter(t.account, filterAcc) || matchesAccountFilter(t.to_account, filterAcc);
   });
 
   const expenses = monthTxs
-    .filter((t) => t.type === "Despesa" && (filterAcc === "ALL" || t.account === filterAcc))
+    .filter((t) => t.type === "Despesa" && matchesAccountFilter(t.account, filterAcc))
     .reduce((acc, t) => acc + Number(t.amount || 0), 0);
 
   const income = monthTxs
-    .filter((t) => t.type === "Receita" && (filterAcc === "ALL" || t.account === filterAcc))
+    .filter((t) => t.type === "Receita" && matchesAccountFilter(t.account, filterAcc))
     .reduce((acc, t) => acc + Number(t.amount || 0), 0);
 
   let displayBalance = income - expenses;
@@ -949,10 +973,10 @@ function renderDashboardAccounts() {
 
   state.accounts.forEach((acc) => {
     const accExp = allMonthTxs
-      .filter((t) => t.type === "Despesa" && t.account === acc.name)
+      .filter((t) => t.type === "Despesa" && matchesAccountFilter(t.account, acc.name))
       .reduce((s, t) => s + Number(t.amount || 0), 0);
     const accInc = allMonthTxs
-      .filter((t) => t.type === "Receita" && t.account === acc.name)
+      .filter((t) => t.type === "Receita" && matchesAccountFilter(t.account, acc.name))
       .reduce((s, t) => s + Number(t.amount || 0), 0);
 
     const card = document.createElement("div");
@@ -1032,30 +1056,73 @@ function createTxElement(tx) {
   return div;
 }
 
+function sortTxsDesc(list) {
+  return [...list].sort((a, b) => {
+    const dCmp = String(b.date || "").localeCompare(String(a.date || ""));
+    if (dCmp !== 0) return dCmp;
+    return String(b.time || "").localeCompare(String(a.time || ""));
+  });
+}
+
 function renderRecentList(monthTxs) {
   const container = document.getElementById("recentTxList");
   container.innerHTML = "";
   const qInp = document.getElementById("quickDashboardSearch");
   const query = (qInp ? qInp.value : "").toLowerCase().trim();
+  const filterAcc = state.activeAccountFilter;
 
-  let filtered = monthTxs;
-  if (query) {
-    filtered = monthTxs.filter(
-      (t) =>
-        (t.description || "").toLowerCase().includes(query) ||
-        (t.category || "").toLowerCase().includes(query) ||
-        (t.account || "").toLowerCase().includes(query)
-    );
+  const matchesQuery = (t) =>
+    !query ||
+    (t.description || "").toLowerCase().includes(query) ||
+    (t.category || "").toLowerCase().includes(query) ||
+    (t.account || "").toLowerCase().includes(query);
+
+  const sortedMonth = sortTxsDesc(monthTxs.filter(matchesQuery));
+  const limit = window.innerWidth >= 1024 ? 16 : 10;
+  const visible = sortedMonth.slice(0, limit);
+
+  visible.forEach((tx) => container.appendChild(createTxElement(tx)));
+
+  if (visible.length < limit) {
+    const prevTxs = sortTxsDesc(
+      state.transactions.filter((t) => {
+        const m = t.month_year || (t.date ? t.date.slice(0, 7) : "");
+        if (m === state.selectedMonth) return false;
+        const accOk =
+          matchesAccountFilter(t.account, filterAcc) ||
+          matchesAccountFilter(t.to_account, filterAcc);
+        return accOk && matchesQuery(t);
+      })
+    ).slice(0, limit - visible.length);
+
+    if (prevTxs.length > 0) {
+      const sep = document.createElement("div");
+      sep.className = "section-label";
+      sep.style.cssText =
+        "margin: 12px 0 6px 0; padding-top: 10px; border-top: 1px solid var(--border-subtle); font-size: 10px; color: var(--text-muted);";
+      sep.innerHTML = `<span>Registos de Meses Anteriores</span>`;
+      container.appendChild(sep);
+      prevTxs.forEach((tx) => container.appendChild(createTxElement(tx)));
+      return;
+    }
   }
-
-  const limit = window.innerWidth >= 1024 ? 14 : 7;
-  const visible = filtered.slice(0, limit);
 
   if (visible.length === 0) {
+    if (filterAcc !== "ALL" && state.transactions.length > 0) {
+      const fallbackAll = sortTxsDesc(state.transactions.filter(matchesQuery)).slice(0, limit);
+      if (fallbackAll.length > 0) {
+        const sep = document.createElement("div");
+        sep.className = "section-label";
+        sep.style.cssText =
+          "margin: 4px 0 8px 0; font-size: 10px; color: var(--text-muted);";
+        sep.innerHTML = `<span>Sem movimentos em ${filterAcc} · A mostrar todas as contas</span>`;
+        container.appendChild(sep);
+        fallbackAll.forEach((tx) => container.appendChild(createTxElement(tx)));
+        return;
+      }
+    }
     container.innerHTML = `<p style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 20px 0;">Sem movimentos neste filtro.</p>`;
-    return;
   }
-  visible.forEach((tx) => container.appendChild(createTxElement(tx)));
 }
 
 function renderFullHistory() {
@@ -1063,18 +1130,25 @@ function renderFullHistory() {
   const query = (document.getElementById("searchTxInput").value || "").toLowerCase().trim();
   const accFilter = document.getElementById("historyAccountFilter").value || "ALL";
 
-  const filtered = state.transactions.filter((t) => {
-    const matchesMonth = (t.month_year || t.date.slice(0, 7)) === state.selectedMonth;
-    if (!matchesMonth) return false;
-    if (accFilter !== "ALL" && t.account !== accFilter && t.to_account !== accFilter) return false;
-    if (!query) return true;
-    return (
-      (t.description || "").toLowerCase().includes(query) ||
-      (t.category || "").toLowerCase().includes(query) ||
-      (t.account || "").toLowerCase().includes(query) ||
-      (t.payment_method || "").toLowerCase().includes(query)
-    );
-  });
+  const filtered = sortTxsDesc(
+    state.transactions.filter((t) => {
+      if (
+        accFilter !== "ALL" &&
+        !matchesAccountFilter(t.account, accFilter) &&
+        !matchesAccountFilter(t.to_account, accFilter)
+      ) {
+        return false;
+      }
+      if (!query) return true;
+      return (
+        (t.description || "").toLowerCase().includes(query) ||
+        (t.category || "").toLowerCase().includes(query) ||
+        (t.account || "").toLowerCase().includes(query) ||
+        (t.date || "").toLowerCase().includes(query) ||
+        (t.payment_method || "").toLowerCase().includes(query)
+      );
+    })
+  );
 
   document.getElementById("txTotalCount").textContent = `${filtered.length} registo(s)`;
   container.innerHTML = "";
