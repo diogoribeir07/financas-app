@@ -298,7 +298,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }, 10000);
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js?v=18").catch(() => {});
+    navigator.serviceWorker.register("./sw.js?v=19").catch(() => {});
   }
 });
 
@@ -393,11 +393,13 @@ function calculateAccountBalances() {
       const amt = Number(t.amount || 0);
       const tAcc = t.account || "Dinheiro Geral";
       const tToAcc = t.to_account || "";
-      if (t.type === "Receita" && tAcc === accName) bal += amt;
-      else if (t.type === "Despesa" && tAcc === accName) bal -= amt;
+      const isFrom = matchesAccountFilter(tAcc, accName);
+      const isTo = matchesAccountFilter(tToAcc, accName);
+      if (t.type === "Receita" && isFrom) bal += amt;
+      else if (t.type === "Despesa" && isFrom) bal -= amt;
       else if (t.type === "Transferência") {
-        if (tAcc === accName) bal -= amt;
-        if (tToAcc === accName) bal += amt;
+        if (isFrom) bal -= amt;
+        if (isTo) bal += amt;
       }
     });
     acc.current_balance = Math.round(bal * 100) / 100;
