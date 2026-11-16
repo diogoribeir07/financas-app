@@ -31,7 +31,9 @@ const STORAGE_KEYS = {
   PENDING: "financas_pending_sync_v5",
   CLOUD_CFG: "financas_cloud_config_v1",
   GIT_META: "financas_git_meta_v1",
-  THEME: "financas_theme_v1"
+  THEME: "financas_theme_v1",
+  GEMINI_KEY: "financas_gemini_key_v1",
+  IMPORT_CP: "financas_import_checkpoint_v1"
 };
 
 let state = {
@@ -50,6 +52,8 @@ let state = {
   pendingIds: new Set(),
   serverOnline: false,
   cloudStatus: { ok: false, error: "", at: 0 },
+  geminiApiKey: "",
+  importCheckpoint: null,
   cloudConfig: {
     provider: "none",
     supabase_url: "",
@@ -298,7 +302,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }, 10000);
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js?v=19").catch(() => {});
+    navigator.serviceWorker.register("./sw.js?v=20").catch(() => {});
   }
 });
 
@@ -333,6 +337,12 @@ function loadLocalState() {
     const rawCfg = localStorage.getItem(STORAGE_KEYS.CLOUD_CFG);
     if (rawCfg) state.cloudConfig = { ...state.cloudConfig, ...JSON.parse(rawCfg) };
 
+    const rawGemini = localStorage.getItem(STORAGE_KEYS.GEMINI_KEY);
+    if (rawGemini) state.geminiApiKey = rawGemini;
+
+    const rawCp = localStorage.getItem(STORAGE_KEYS.IMPORT_CP);
+    if (rawCp) state.importCheckpoint = JSON.parse(rawCp);
+
     const rawMeta = localStorage.getItem(STORAGE_KEYS.GIT_META);
     gitMeta = FinCloud.normalizeMeta(rawMeta ? JSON.parse(rawMeta) : null, currentRepoKey());
   } catch (e) {
@@ -353,9 +363,54 @@ function saveLocalState() {
   localStorage.setItem(STORAGE_KEYS.RECURRING, JSON.stringify(state.recurring));
   localStorage.setItem(STORAGE_KEYS.PENDING, JSON.stringify(Array.from(state.pendingIds)));
   localStorage.setItem(STORAGE_KEYS.CLOUD_CFG, JSON.stringify(state.cloudConfig));
+  localStorage.setItem(STORAGE_KEYS.GEMINI_KEY, state.geminiApiKey || "");
+  if (state.importCheckpoint) {
+    localStorage.setItem(STORAGE_KEYS.IMPORT_CP, JSON.stringify(state.importCheckpoint));
+  }
   localStorage.setItem(STORAGE_KEYS.GIT_META, JSON.stringify(gitMeta));
   localVersion++;
   if (!suppressCloudSchedule) scheduleGitSync();
+}
+
+function applyUrlQuickFill() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const qAmt = params.get("amount");
+    const qDesc = params.get("desc");
+    const qAcc = params.get("acc");
+    const qCat = params.get("cat");
+    const qPay = params.get("pay");
+    const qType = params.get("type");
+    if (!qAmt && !qDesc && !qAcc) return;
+
+    if (qType === "Despesa" || qType === "Receita") {
+      state.currentType = qType;
+      document.querySelectorAll(".type-btn").forEach((b) => b.classList.toggle("active", b.dataset.type === qType));
+    }
+    if (qAcc) {
+      const resolved = resolveAccountName(qAcc);
+      state.selectedAccount = resolved;
+      state.activeAccountFilter = resolved;
+    }
+    if (qCat) state.selectedCategory = qCat;
+    if (qPay) {
+      state.selectedPayment = qPay;
+      document.querySelectorAll("#paymentPills .pay-pill").forEach((p) => p.classList.toggle("selected", p.dataset.pay === qPay));
+    }
+    if (qAmt) {
+      const inp = document.getElementById("amountInput");
+      if (inp) {
+        inp.value = String(qAmt).replace(".", ",");
+        updateAmountCalcPreview();
+      }
+    }
+    if (qDesc) {
+      const dInp = document.getElementById("descriptionInput");
+      if (dInp) dInp.value = qDesc;
+    }
+    window.history.replaceState({}, document.title, window.location.pathname);
+    showToast("Dados pré-preenchidos via atalho");
+  } catch (_) {}
 }
 
 function initInputs() {
@@ -371,7 +426,10 @@ function initInputs() {
   document.getElementById("githubOwnerInput").value = cfg.github_owner || "";
   document.getElementById("githubRepoInput").value = cfg.github_repo || "financas-data";
   document.getElementById("githubTokenInput").value = cfg.github_token || "";
+  const gemInp = document.getElementById("geminiApiKeyInput");
+  if (gemInp) gemInp.value = state.geminiApiKey || "";
   toggleCloudProviderInputs();
+  applyUrlQuickFill();
 }
 
 function toggleCloudProviderInputs() {
@@ -1251,13 +1309,29 @@ function renderDesktopSidePanel(monthTxs, totalExpenses) {
 // =========================================================================
 // MODAIS
 // =========================================================================
+function resolveAccountName(accName) {
+  if (!accName) return state.accounts[0] ? state.accounts[0].name : "Dinheiro Geral";
+  const exact = state.accounts.find((a) => a.name === accName);
+  if (exact) return exact.name;
+  const alias = state.accounts.find((a) => matchesAccountFilter(accName, a.name));
+  return alias ? alias.name : accName;
+}
+
 function openEditTxModal(tx) {
   populateSelectDropdowns();
   document.getElementById("editTxId").value = tx.id;
   document.getElementById("editTxType").value = tx.type || "Despesa";
   document.getElementById("editTxAmount").value = tx.amount;
-  document.getElementById("editTxAccount").value = tx.account || "Dinheiro Geral";
-  document.getElementById("editTxCategory").value = tx.category || "Outros";
+  document.getElementById("editTxAccount").value = resolveAccountName(tx.account);
+  const catSel = document.getElementById("editTxCategory");
+  const targetCat = tx.category || "Outros";
+  if (targetCat && !Array.from(catSel.options).some((o) => o.value === targetCat)) {
+    const opt = document.createElement("option");
+    opt.value = targetCat;
+    opt.textContent = targetCat;
+    catSel.appendChild(opt);
+  }
+  catSel.value = targetCat;
   document.getElementById("editTxDesc").value = stripEmojis(tx.description || "");
   document.getElementById("editTxDate").value = tx.date;
   document.getElementById("editTxMethod").value = tx.payment_method || "MBWay";
@@ -1893,6 +1967,8 @@ function bindEvents() {
       github_repo: document.getElementById("githubRepoInput").value.trim() || "financas-data",
       github_token: document.getElementById("githubTokenInput").value.trim()
     };
+    const gemInp = document.getElementById("geminiApiKeyInput");
+    if (gemInp) state.geminiApiKey = gemInp.value.trim();
     // Se mudou de repositório, recomeça o controlo de alterações para essa cloud.
     gitMeta = FinCloud.normalizeMeta(gitMeta, currentRepoKey());
     repoPrivacyChecked = "";
@@ -1948,6 +2024,301 @@ function bindEvents() {
   });
 
   document.getElementById("downloadExcelBtn").addEventListener("click", () => downloadExcel());
+  bindSmartImportEvents();
+}
+
+// =========================================================================
+// IMPORTAÇÃO AUTOMÁTICA (PRINT / PDF CGD)
+// =========================================================================
+let smartImportSession = null;
+
+function bindSmartImportEvents() {
+  const triggerBtn = document.getElementById("smartImportTriggerBtn");
+  const fileInp = document.getElementById("smartImportFileInput");
+  const closeBtn = document.getElementById("closeImportModal");
+  const toggleBtn = document.getElementById("importToggleAllBtn");
+  const confirmBtn = document.getElementById("confirmSmartImportBtn");
+  if (!triggerBtn || !fileInp) return;
+
+  triggerBtn.addEventListener("click", () => {
+    fileInp.value = "";
+    fileInp.click();
+  });
+
+  fileInp.addEventListener("change", async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    await handleSmartImportFiles(files);
+  });
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => {
+      document.getElementById("importModal").classList.add("hidden");
+      smartImportSession = null;
+    });
+  }
+
+  if (toggleBtn) {
+    toggleBtn.addEventListener("click", () => {
+      if (!smartImportSession) return;
+      const newItems = smartImportSession.reconciliation.items.filter((i) => i.status === "new");
+      const targetPool = newItems.length ? newItems : smartImportSession.reconciliation.items;
+      const anyUnchecked = targetPool.some((i) => !i.selected);
+      targetPool.forEach((i) => (i.selected = anyUnchecked));
+      renderSmartImportModal();
+    });
+  }
+
+  if (confirmBtn) {
+    confirmBtn.addEventListener("click", () => confirmSmartImport());
+  }
+}
+
+async function handleSmartImportFiles(files) {
+  if (typeof FinImport === "undefined") {
+    showToast("Módulo de importação indisponível");
+    return;
+  }
+  const triggerBtn = document.getElementById("smartImportTriggerBtn");
+  const prevText = triggerBtn.innerHTML;
+  triggerBtn.disabled = true;
+  triggerBtn.textContent = "A ler...";
+
+  try {
+    const pdfFile = files.find((f) => f.type === "application/pdf" || /\.pdf$/i.test(f.name));
+    const imageFiles = files.filter((f) => f.type.startsWith("image/") || /\.(png|jpe?g|webp|heic|heif)$/i.test(f.name));
+    let parsed;
+    if (pdfFile) {
+      parsed = await FinImport.parseCgdPdfFile(pdfFile);
+    } else if (imageFiles.length > 0) {
+      parsed = await FinImport.parseScreenshotsWithGemini(imageFiles, state.geminiApiKey);
+    } else {
+      throw new Error("Seleciona uma imagem (print) ou um ficheiro PDF da CGD.");
+    }
+
+    const defaultAcc =
+      state.selectedAccount && state.selectedAccount !== "SPLIT_MAE_PAI"
+        ? resolveAccountName(state.selectedAccount)
+        : resolveAccountName("Dinheiro Mãe");
+    const rec = FinImport.reconcileImport(parsed, state.transactions, {
+      defaultAccount: defaultAcc,
+      accounts: state.accounts,
+      categories: state.categories,
+      checkpoint: state.importCheckpoint || FinImport.DEFAULT_CHECKPOINT
+    });
+
+    smartImportSession = {
+      defaultAccount: defaultAcc,
+      applyCativo: true,
+      reconciliation: rec
+    };
+    renderSmartImportModal();
+    document.getElementById("importModal").classList.remove("hidden");
+  } catch (err) {
+    showToast(err.message || "Erro ao ler o ficheiro");
+  } finally {
+    triggerBtn.disabled = false;
+    triggerBtn.innerHTML = prevText;
+  }
+}
+
+function renderSmartImportModal() {
+  if (!smartImportSession) return;
+  const { reconciliation: rec, defaultAccount, applyCativo } = smartImportSession;
+  const summary = FinImport.evaluateReconciliationSummary(rec, applyCativo);
+
+  const badgeEl = document.getElementById("importSourceBadge");
+  if (badgeEl) badgeEl.textContent = rec.source === "pdf" ? "PDF CGD" : "Print";
+
+  const pillsBox = document.getElementById("importDefaultAccPills");
+  pillsBox.innerHTML = "";
+  state.accounts.forEach((acc) => {
+    const pill = document.createElement("div");
+    pill.className = `acc-pill ${acc.name === defaultAccount ? "selected" : ""}`;
+    pill.textContent = acc.name;
+    pill.addEventListener("click", () => {
+      const oldDef = smartImportSession.defaultAccount;
+      smartImportSession.defaultAccount = acc.name;
+      rec.items.forEach((it) => {
+        if (it.account === oldDef || it.status === "new") {
+          if (it.category !== "Faculdade" && !/Transferência\s+Mãe/i.test(it.description)) {
+            it.account = acc.name;
+          }
+        }
+      });
+      renderSmartImportModal();
+    });
+    pillsBox.appendChild(pill);
+  });
+
+  const balBox = document.getElementById("importBalanceBox");
+  const lines = [
+    `<div class="import-bal-row"><span>Saldo Atual na App</span><strong>${formatEuro(rec.currentAppBalance)}</strong></div>`,
+    `<div class="import-bal-row"><span>Saldo Após Importação</span><strong>${formatEuro(summary.projectedAvailable)}</strong></div>`
+  ];
+  if (typeof rec.availableBalance === "number") {
+    lines.push(`<div class="import-bal-row"><span>Saldo Disponível Banco</span><strong>${formatEuro(rec.availableBalance)}</strong></div>`);
+  }
+  if (summary.canApplyCativo) {
+    const catLabel = summary.newCativoAmount > 0 ? `-${formatEuro(summary.newCativoAmount)}` : "0,00 € (limpar)";
+    lines.push(
+      `<label class="import-cativo-opt"><input type="checkbox" id="importApplyCativoCheck" ${applyCativo ? "checked" : ""} /><span>Acertar cativo pendente (${catLabel})</span></label>`
+    );
+  }
+  if (summary.warning) {
+    lines.push(`<div class="import-warn">${summary.warning}</div>`);
+  }
+  balBox.innerHTML = lines.join("");
+
+  const catCheck = document.getElementById("importApplyCativoCheck");
+  if (catCheck) {
+    catCheck.addEventListener("change", (e) => {
+      smartImportSession.applyCativo = !!e.target.checked;
+      renderSmartImportModal();
+    });
+  }
+
+  const listEl = document.getElementById("importItemsList");
+  listEl.innerHTML = "";
+  const newCount = rec.items.filter((i) => i.status === "new").length;
+  document.getElementById("importCountLabel").textContent =
+    `${summary.selectedCount} selecionado(s) · ${newCount} novo(s)` +
+    (rec.skippedOldCount > 0 ? ` (${rec.skippedOldCount} anteriores omitidos)` : "");
+
+  if (rec.items.length === 0) {
+    listEl.innerHTML = `<p style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 14px 0;">Tudo já está sincronizado até à última linha deste extrato.</p>`;
+  } else {
+    const accOpts = state.accounts.map((a) => `<option value="${a.name}">${a.name}</option>`).join("");
+    rec.items.forEach((it) => {
+      const rowEl = document.createElement("div");
+      rowEl.className = `import-row ${it.status === "new" ? "" : "is-existing"}`;
+      const sign = it.type === "Receita" ? "+" : "-";
+      const datePt = (it.date || "").split("-").reverse().join("/");
+      const statusText = it.status === "new" ? "Novo" : it.status === "before_checkpoint" ? "Anterior" : "Já apontado";
+
+      rowEl.innerHTML = `
+        <input type="checkbox" class="imp-chk" ${it.selected ? "checked" : ""} />
+        <div class="import-row-main">
+          <input type="text" class="import-row-desc" value="${stripEmojis(it.description).replace(/"/g, "&quot;")}" />
+          <div class="import-row-meta">
+            <span>${datePt}</span>
+            <select class="import-mini-select imp-acc">${accOpts}</select>
+            <span>${it.category}</span>
+          </div>
+        </div>
+        <div class="import-row-right">
+          <div class="tx-amount ${it.type}">${sign}${formatEuro(it.amount)}</div>
+          <span class="import-status-tag ${it.status === "new" ? "new" : ""}">${statusText}</span>
+        </div>
+      `;
+
+      const accSel = rowEl.querySelector(".imp-acc");
+      accSel.value = resolveAccountName(it.account);
+      accSel.addEventListener("change", (e) => {
+        it.account = e.target.value;
+      });
+      rowEl.querySelector(".imp-chk").addEventListener("change", (e) => {
+        it.selected = !!e.target.checked;
+        renderSmartImportModal();
+      });
+      rowEl.querySelector(".import-row-desc").addEventListener("input", (e) => {
+        it.description = e.target.value;
+      });
+
+      listEl.appendChild(rowEl);
+    });
+  }
+
+  const confirmBtn = document.getElementById("confirmSmartImportBtn");
+  const cativoChanged =
+    summary.canApplyCativo &&
+    applyCativo &&
+    Math.abs(FinImport.evaluateReconciliationSummary(rec, false).projectedAvailable - summary.projectedAvailable) >= 0.01;
+  confirmBtn.textContent =
+    summary.selectedCount > 0
+      ? `Importar ${summary.selectedCount} Movimento(s)`
+      : cativoChanged
+        ? "Atualizar Cativo"
+        : "Concluir";
+}
+
+async function confirmSmartImport() {
+  if (!smartImportSession) return;
+  const { reconciliation: rec, defaultAccount, applyCativo } = smartImportSession;
+  const summary = FinImport.evaluateReconciliationSummary(rec, applyCativo);
+  const selected = rec.items.filter((i) => i.selected);
+  const nowTs = Date.now();
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const nowTime = new Date().toTimeString().slice(0, 5);
+  const addedTxs = [];
+
+  selected.forEach((it, idx) => {
+    const cleanDesc = stripEmojis(it.description || "").trim() || it.category || "Movimento";
+    const tx = {
+      id: it.id && !state.transactions.some((t) => t.id === it.id)
+        ? it.id
+        : `TX-IMP-${nowTs}-${idx}-${Math.random().toString(36).substring(2, 5).toUpperCase()}`,
+      date: it.date || todayStr,
+      time: nowTime,
+      type: it.type || "Despesa",
+      account: resolveAccountName(it.account || defaultAccount),
+      to_account: "",
+      category: it.category || "Outros",
+      description: cleanDesc,
+      amount: Math.round((Number(it.amount) || 0) * 100) / 100,
+      payment_method: it.payment_method || "Multibanco",
+      month_year: (it.date || todayStr).slice(0, 7)
+    };
+    state.transactions.unshift(tx);
+    state.pendingIds.add(tx.id);
+    addedTxs.push(tx);
+  });
+
+  const baseAvailIfUnchanged = FinImport.evaluateReconciliationSummary(rec, false).projectedAvailable;
+  const cativoChanged =
+    summary.canApplyCativo &&
+    applyCativo &&
+    Math.abs(baseAvailIfUnchanged - summary.projectedAvailable) >= 0.01;
+
+  if (cativoChanged) {
+    const oldCativoIds = state.transactions.filter((t) => FinImport.isCativoTx(t)).map((t) => t.id);
+    state.transactions = state.transactions.filter((t) => !FinImport.isCativoTx(t));
+    oldCativoIds.forEach((id) => state.pendingIds.delete(id));
+
+    if (summary.newCativoAmount > 0.004) {
+      const cativoTx = {
+        id: `TX-${nowTs}-CATIVO`,
+        date: todayStr,
+        time: nowTime,
+        type: "Despesa",
+        account: resolveAccountName(defaultAccount),
+        to_account: "",
+        category: "Outros",
+        description: "Compras cativas / pendentes",
+        amount: Math.round(summary.newCativoAmount * 100) / 100,
+        payment_method: "Multibanco",
+        month_year: todayStr.slice(0, 7)
+      };
+      state.transactions.unshift(cativoTx);
+      state.pendingIds.add(cativoTx.id);
+    }
+  }
+
+  if (rec.nextCheckpoint && !summary.warning) {
+    state.importCheckpoint = rec.nextCheckpoint;
+  }
+
+  state.transactions = FinCloud.sortTransactions(state.transactions);
+  saveLocalState();
+  document.getElementById("importModal").classList.add("hidden");
+  smartImportSession = null;
+  renderAll();
+  showToast(
+    addedTxs.length > 0
+      ? `${addedTxs.length} movimento(s) importado(s) · Saldo ${formatEuro(summary.projectedAvailable)}`
+      : `Saldo atualizado: ${formatEuro(summary.projectedAvailable)}`
+  );
+  await syncWithBackendAndCloud();
 }
 
 function switchTab(targetId) {
@@ -2066,6 +2437,9 @@ function applyMergedToState(merged) {
       gitMeta.quickAmountsStamp = Number(merged.quick_amounts_updated_at) || gitMeta.quickAmountsStamp || 0;
     }
     state.recurring = merged.recurring;
+    if (merged.import_checkpoint && merged.import_checkpoint.date) {
+      state.importCheckpoint = merged.import_checkpoint;
+    }
     gitMeta.tombstones = merged.tombstones;
     gitMeta.maxStamp = Math.max(gitMeta.maxStamp || 0, FinCloud.maxStamp(merged));
     FinCloud.markAllSeen(state, gitMeta);

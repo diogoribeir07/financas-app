@@ -1,10 +1,11 @@
-const CACHE_NAME = 'financas-pwa-v19';
+const CACHE_NAME = 'financas-pwa-v20';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './app.js',
   './github-cloud.js',
+  './smart-import.js',
   './xlsx-export.js',
   './xlsx.mini.min.js',
   './manifest.json'

@@ -8,8 +8,8 @@
   <meta name="apple-mobile-web-app-title" content="Finanças" />
   <meta name="theme-color" content="#121214" />
   <title>Finanças Pessoais</title>
-  <link rel="manifest" href="./manifest.json?v=19" />
-  <link rel="stylesheet" href="./styles.css?v=19" />
+  <link rel="manifest" href="./manifest.json?v=20" />
+  <link rel="stylesheet" href="./styles.css?v=20" />
 </head>
 <body>
   <div id="toast" class="toast">Registo guardado</div>
@@ -95,10 +95,17 @@
         <div class="desktop-workspace-grid">
           <!-- Coluna 1: Formulário Rápido -->
           <div class="card">
-            <div class="type-switcher">
-              <button type="button" class="type-btn active" data-type="Despesa">Despesa</button>
-              <button type="button" class="type-btn" data-type="Receita">Receita</button>
-              <button type="button" class="type-btn" data-type="Transferência">Transferir</button>
+            <div class="type-bar-row">
+              <div class="type-switcher">
+                <button type="button" class="type-btn active" data-type="Despesa">Despesa</button>
+                <button type="button" class="type-btn" data-type="Receita">Receita</button>
+                <button type="button" class="type-btn" data-type="Transferência">Transferir</button>
+              </div>
+              <button type="button" id="smartImportTriggerBtn" class="import-trigger-btn" title="Importar Print ou PDF CGD">
+                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                <span>Importar</span>
+              </button>
+              <input type="file" id="smartImportFileInput" accept="image/*,.pdf,application/pdf" multiple class="hidden" />
             </div>
 
             <form id="quickExpenseForm">
@@ -413,6 +420,17 @@
               />
             </div>
 
+            <div class="form-row">
+              <label class="section-label" style="margin-bottom: 4px;">Leitura de Prints · Gemini API Key (Opcional)</label>
+              <input
+                type="password"
+                id="geminiApiKeyInput"
+                class="input-field"
+                placeholder="AIza... (apenas para prints/imagens; PDFs não precisam)"
+                autocomplete="off"
+              />
+            </div>
+
             <button type="button" id="saveCloudConfigBtn" class="action-btn-secondary">
               Guardar Configuração Cloud
             </button>
@@ -628,6 +646,34 @@
     </div>
   </div>
 
+  <!-- MODAL 6: IMPORTAÇÃO AUTOMÁTICA (PRINT / PDF CGD) -->
+  <div id="importModal" class="modal-overlay hidden">
+    <div class="modal-card modal-wide">
+      <div class="modal-header">
+        <div class="modal-title" id="importModalTitle">Importar Movimentos</div>
+        <button type="button" class="mini-action-btn" id="closeImportModal">Fechar</button>
+      </div>
+
+      <div class="section-label">
+        <span>Carteira Padrão</span>
+        <span id="importSourceBadge" class="tx-account-badge"></span>
+      </div>
+      <div id="importDefaultAccPills" class="account-pills" style="margin-bottom: 10px;"></div>
+
+      <div id="importBalanceBox" class="import-balance-box"></div>
+
+      <div class="section-label" style="margin-top: 10px;">
+        <span id="importCountLabel">0 movimentos</span>
+        <button type="button" class="link-btn" id="importToggleAllBtn">Alternar seleção</button>
+      </div>
+      <div id="importItemsList" class="import-items-list"></div>
+
+      <button type="button" id="confirmSmartImportBtn" class="submit-btn" style="margin-top: 12px;">
+        Confirmar Importação
+      </button>
+    </div>
+  </div>
+
   <!-- Mobile Bottom Navigation Bar (Oculta em PC >= 1024px) -->
   <nav class="bottom-nav">
     <button type="button" class="nav-item active" data-tab="tab-registar">
@@ -652,9 +698,10 @@
     </button>
   </nav>
 
-  <script src="./xlsx.mini.min.js?v=19"></script>
-  <script src="./xlsx-export.js?v=19"></script>
-  <script src="./github-cloud.js?v=19"></script>
-  <script src="./app.js?v=19"></script>
+  <script src="./xlsx.mini.min.js?v=20"></script>
+  <script src="./xlsx-export.js?v=20"></script>
+  <script src="./github-cloud.js?v=20"></script>
+  <script src="./smart-import.js?v=20"></script>
+  <script src="./app.js?v=20"></script>
 </body>
 </html>

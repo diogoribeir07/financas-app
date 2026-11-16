@@ -215,6 +215,12 @@ def merge_snapshots(local: Dict[str, Any], remote: Optional[Dict[str, Any]], now
     elif isinstance(local.get("quick_amounts"), list):
         out["quick_amounts"] = local["quick_amounts"]
         out["quick_amounts_updated_at"] = int(local.get("quick_amounts_updated_at") or 0)
+    r_cp = remote.get("import_checkpoint") if isinstance(remote.get("import_checkpoint"), dict) else None
+    l_cp = local.get("import_checkpoint") if isinstance(local.get("import_checkpoint"), dict) else None
+    if l_cp and r_cp:
+        out["import_checkpoint"] = l_cp if float(l_cp.get("updated_at") or 0) > float(r_cp.get("updated_at") or 0) else r_cp
+    elif r_cp or l_cp:
+        out["import_checkpoint"] = r_cp or l_cp
     return out
 
 
@@ -223,6 +229,8 @@ def canonical(snapshot: Dict[str, Any]) -> str:
     if isinstance(snapshot.get("quick_amounts"), list):
         view["quick_amounts"] = snapshot["quick_amounts"]
         view["quick_amounts_updated_at"] = int(snapshot.get("quick_amounts_updated_at") or 0)
+    if isinstance(snapshot.get("import_checkpoint"), dict) and snapshot["import_checkpoint"].get("date"):
+        view["import_checkpoint"] = snapshot["import_checkpoint"]
     for col in COLLECTIONS:
         view[col] = sorted(snapshot.get(col) or [], key=lambda e: str(e.get("id")))
         view["tombstones"][col] = (snapshot.get("tombstones") or {}).get(col) or {}

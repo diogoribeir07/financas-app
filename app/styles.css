@@ -56,6 +56,10 @@ input[type="number"] {
   appearance: textfield;
 }
 
+html {
+  overflow-x: hidden;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Inter", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
   background-color: var(--bg-main);
@@ -93,7 +97,11 @@ body {
 
 /* Desktop Full-Screen Workspace (>= 1024px) */
 @media (min-width: 1024px) {
-  body {
+  html {
+  overflow-x: hidden;
+}
+
+body {
     padding-bottom: 0;
   }
 
@@ -440,6 +448,7 @@ body {
   border-radius: var(--radius-xl);
   padding: 18px;
   margin-bottom: 16px;
+  min-width: 0;
 }
 
 /* 3-Way Type Switcher */
@@ -1335,5 +1344,214 @@ body {
   color: var(--text-secondary);
   padding-top: 8px;
   border-top: 1px solid var(--border-color);
+}
+
+/* Botão e Modal de Importação Limpa */
+.type-bar-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  margin-bottom: 16px;
+  min-width: 0;
+}
+
+.type-bar-row .type-switcher {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.type-bar-row .type-btn {
+  padding: 8px 4px;
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.import-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 9px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.import-trigger-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  background: var(--bg-hover);
+}
+
+.modal-wide {
+  max-width: 520px;
+}
+
+.import-balance-box {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.import-bal-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.import-bal-row strong {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.import-cativo-opt {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.import-warn {
+  color: var(--expense-color);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.import-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 44vh;
+  overflow-y: auto;
+}
+
+.import-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.import-row.is-existing {
+  opacity: 0.55;
+}
+
+.import-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-primary);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.import-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.import-row-desc {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  padding: 1px 0;
+  outline: none;
+}
+
+.import-row-desc:focus {
+  border-bottom-color: var(--border-strong);
+}
+
+.import-row-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.import-mini-select {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  border-radius: 5px;
+  font-size: 11px;
+  font-family: inherit;
+  padding: 2px 5px;
+  outline: none;
+}
+
+.import-row-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.import-status-tag {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.import-status-tag.new {
+  color: var(--income-color);
+  border-color: var(--border-strong);
+}
+
+@media (max-width: 480px) {
+  .calc-op-btn {
+    padding: 7px 4px;
+    font-size: 11px;
+    min-width: 0;
+  }
+  .cat-item {
+    padding: 9px 4px;
+    min-width: 0;
+  }
+  .cat-name {
+    font-size: 11px;
+    overflow-wrap: anywhere;
+  }
+  .form-row > * {
+    min-width: 0;
+  }
 }
 

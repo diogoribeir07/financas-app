@@ -87,6 +87,8 @@
     if (!snapshot) return max;
     const qaStamp = Number(snapshot.quick_amounts_updated_at) || 0;
     if (qaStamp > max) max = qaStamp;
+    const cpStamp = Number(snapshot.import_checkpoint && snapshot.import_checkpoint.updated_at) || 0;
+    if (cpStamp > max) max = cpStamp;
     COLLECTIONS.forEach((col) => {
       (snapshot[col] || []).forEach((e) => {
         const v = Number(e && e.updated_at) || 0;
@@ -171,6 +173,13 @@
       snap.quick_amounts = data.quickAmounts.map((n) => Number(n)).filter((n) => !Number.isNaN(n) && n !== 0);
       snap.quick_amounts_updated_at = Number(meta && meta.quickAmountsStamp) || 0;
     }
+    if (data.importCheckpoint && data.importCheckpoint.date) {
+      snap.import_checkpoint = {
+        date: String(data.importCheckpoint.date || ""),
+        sig: String(data.importCheckpoint.sig || ""),
+        updated_at: Number(data.importCheckpoint.updated_at) || 0
+      };
+    }
     COLLECTIONS.forEach((col) => {
       snap[col] = (data[col] || [])
         .filter((e) => e && e.id !== undefined && e.id !== null)
@@ -252,6 +261,14 @@
       out.quick_amounts_updated_at = lQaTs;
     }
 
+    const lCp = local.import_checkpoint && local.import_checkpoint.date ? local.import_checkpoint : null;
+    const rCp = remote.import_checkpoint && remote.import_checkpoint.date ? remote.import_checkpoint : null;
+    if (lCp && rCp) {
+      out.import_checkpoint = (Number(lCp.updated_at) || 0) > (Number(rCp.updated_at) || 0) ? lCp : rCp;
+    } else if (rCp || lCp) {
+      out.import_checkpoint = rCp || lCp;
+    }
+
     return out;
   }
 
@@ -269,6 +286,9 @@
     if (Array.isArray(snapshot.quick_amounts)) {
       view.quick_amounts = snapshot.quick_amounts;
       view.quick_amounts_updated_at = Number(snapshot.quick_amounts_updated_at) || 0;
+    }
+    if (snapshot.import_checkpoint && snapshot.import_checkpoint.date) {
+      view.import_checkpoint = snapshot.import_checkpoint;
     }
     COLLECTIONS.forEach((col) => {
       view[col] = (snapshot[col] || [])
