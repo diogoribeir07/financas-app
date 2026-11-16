@@ -302,7 +302,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }, 10000);
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js?v=20").catch(() => {});
+    navigator.serviceWorker.register("./sw.js?v=21").catch(() => {});
   }
 });
 

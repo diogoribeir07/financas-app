@@ -345,6 +345,105 @@
     });
   }
 
+  const GEMINI_MODEL_CACHE_KEY = "financas_gemini_model_v1";
+  const DEFAULT_GEMINI_MODELS = [
+    "gemini-3.5-flash",
+    "gemini-3-flash-preview",
+    "gemini-3-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-2.5-flash"
+  ];
+
+  async function discoverGeminiModels(apiKey) {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      const skipRe = /embedding|imagen|veo|tts|audio|robotics|computer-use|aqa|bisect|learnlm/i;
+      const list = (data.models || [])
+        .filter((m) => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes("generateContent"))
+        .map((m) => String(m.name || "").replace(/^models\//, ""))
+        .filter((id) => /^gemini-/i.test(id) && !skipRe.test(id));
+
+      const score = (id) => {
+        let s = 0;
+        if (/flash/i.test(id)) s += 100;
+        if (!/lite/i.test(id)) s += 20;
+        if (!/exp|preview/i.test(id)) s += 10;
+        const ver = id.match(/gemini-(\d+(?:\.\d+)?)/i);
+        if (ver) s += parseFloat(ver[1]) * 10;
+        return s;
+      };
+      return list.sort((a, b) => score(b) - score(a));
+    } catch (_) {
+      return [];
+    }
+  }
+
+  async function callGeminiWithAutoModel(apiKey, body) {
+    let cached = "";
+    try { cached = localStorage.getItem(GEMINI_MODEL_CACHE_KEY) || ""; } catch (_) {}
+
+    const tried = new Set();
+    const initialList = (cached ? [cached] : []).concat(DEFAULT_GEMINI_MODELS);
+    let discovered = false;
+    let queue = [...initialList];
+    let lastStatus = 0;
+    let lastMsg = "";
+
+    while (queue.length > 0 || !discovered) {
+      if (queue.length === 0 && !discovered) {
+        discovered = true;
+        const found = await discoverGeminiModels(apiKey);
+        queue = found.filter((m) => !tried.has(m));
+        if (queue.length === 0) break;
+      }
+
+      const modelId = queue.shift();
+      if (!modelId || tried.has(modelId)) continue;
+      tried.add(modelId);
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelId)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      let res;
+      try {
+        res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+      } catch (_) {
+        throw new Error("Sem ligação à internet para analisar o print.");
+      }
+
+      if (res.ok) {
+        try { localStorage.setItem(GEMINI_MODEL_CACHE_KEY, modelId); } catch (_) {}
+        return await res.json();
+      }
+
+      lastStatus = res.status;
+      try {
+        const errData = await res.json();
+        lastMsg = (errData && errData.error && errData.error.message) || "";
+      } catch (_) {}
+
+      if (modelId === cached) {
+        try { localStorage.removeItem(GEMINI_MODEL_CACHE_KEY); } catch (_) {}
+      }
+
+      if (res.status === 401 || res.status === 403 || (res.status === 400 && /api.?key/i.test(lastMsg))) {
+        throw new Error("Gemini API Key inválida ou sem permissão. Confirma na aba Cloud.");
+      }
+      if (res.status === 429) {
+        throw new Error("Limite temporário de pedidos Gemini atingido. Tenta novamente em segundos.");
+      }
+      if (res.status !== 404 && res.status !== 400) {
+        break;
+      }
+    }
+
+    throw new Error(`Erro na API Gemini (${lastStatus || 404})${lastMsg ? ": " + lastMsg : "."}`);
+  }
+
   async function parseScreenshotsWithGemini(files, apiKey, todayIso) {
     const key = String(apiKey || "").trim();
     if (!key) {
@@ -397,25 +496,7 @@
       }
     };
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`;
-    let res;
-    try {
-      res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
-    } catch (_) {
-      throw new Error("Sem ligação à internet para analisar o print.");
-    }
-    if (!res.ok) {
-      let msg = `Erro na API Gemini (${res.status}).`;
-      if (res.status === 400 || res.status === 403) msg = "Gemini API Key inválida ou sem permissão. Confirma na aba Cloud.";
-      if (res.status === 429) msg = "Limite temporário de pedidos Gemini atingido. Tenta novamente em segundos.";
-      throw new Error(msg);
-    }
-
-    const json = await res.json();
+    const json = await callGeminiWithAutoModel(key, body);
     const rawText = json && json.candidates && json.candidates[0] && json.candidates[0].content &&
       json.candidates[0].content.parts && json.candidates[0].content.parts[0] && json.candidates[0].content.parts[0].text;
     if (!rawText) throw new Error("Não foi possível interpretar a resposta da imagem.");
